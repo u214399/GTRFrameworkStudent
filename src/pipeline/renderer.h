@@ -7,11 +7,20 @@
 //forward declarations
 class Camera;
 class Skeleton;
+
 namespace GFX {
 	class Shader;
 	class Mesh;
 	class FBO;
 }
+
+
+struct sDrawCommand {
+	GFX::Mesh* mesh = nullptr;
+	Matrix44 model;
+	SCN::Material* material = nullptr;
+	float distance;
+};
 
 namespace SCN {
 
@@ -22,7 +31,13 @@ namespace SCN {
 	// Separating the render from anything else makes the code cleaner
 	class Renderer
 	{
+
+		std::vector<sDrawCommand> entities_to_render;
+		std::vector<sDrawCommand> transparent_to_render;
+
+
 	public:
+
 		bool render_wireframe;
 		bool render_boundaries;
 
@@ -38,6 +53,7 @@ namespace SCN {
 
 		//add here your functions
 		//...
+		void parseNodes(SCN::Node* node, Camera* cam);
 
 		void parseSceneEntities(SCN::Scene* scene, Camera* camera);
 

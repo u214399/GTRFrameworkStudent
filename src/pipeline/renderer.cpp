@@ -46,16 +46,56 @@ void Renderer::setupScene()
 		skybox_cubemap = nullptr;
 }
 
+void Renderer::parseNodes(SCN::Node* node, Camera* cam) {
+	if (!node) return;
+
+
+
+	if(node->mesh){
+		Matrix44 global_matrix = node->getGlobalMatrix();
+		float distance = cam->eye.distance(global_matrix.getTranslation());
+		bool must_render = true;
+		must_render &= (distance < 30);
+		Vector3f bb_center = global_matrix * node->mesh->box.center;
+		Vector3f bb_halfsize = node->mesh->box.halfsize;
+		cam->extractFrustum();
+		must_render &= (cam->testBoxInFrustum(bb_center, bb_halfsize) != CLIP_OUTSIDE);
+		if (must_render) {
+			sDrawCommand values;
+			values.mesh = node->mesh;
+			values.model = node->getGlobalMatrix();
+			values.material = node->material;
+			values.distance = distance;
+			if (values.material->alpha_mode == BLEND)
+				transparent_to_render.push_back(values);
+			else
+				entities_to_render.push_back(values);
+		}
+	}
+
+	for (SCN::Node* child : node->children) {
+		parseNodes(child , cam);
+	}
+}
+
 void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 	// HERE =====================
 	// TODO: GENERATE RENDERABLES
 	// ==========================
+
+	entities_to_render.clear();
+	transparent_to_render.clear();
 
 	for (int i = 0; i < scene->entities.size(); i++) {
 		BaseEntity* entity = scene->entities[i];
 
 		if (!entity->visible) {
 			continue;
+		}
+
+		
+		if (entity->getType() == eEntityType::PREFAB) {
+			parseNodes(&((PrefabEntity*)entity)->root, cam);
 		}
 
 		// Store Prefab Entitys
@@ -89,6 +129,24 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	// HERE =====================
 	// TODO: RENDER RENDERABLES
 	// ==========================
+	
+
+
+	std::sort(entities_to_render.begin(), entities_to_render.end(), [](const sDrawCommand& s1, const sDrawCommand& s2) {
+		return s1.distance < s2.distance;
+		});
+	for(sDrawCommand draw : entities_to_render){
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material);
+	}
+
+	std::sort(transparent_to_render.begin(), transparent_to_render.end(), [](const sDrawCommand& s1, const sDrawCommand& s2) {
+		return s1.distance > s2.distance;
+		});
+	for (sDrawCommand draw : transparent_to_render) {
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material);
+	}
+
+
 }
 
 
