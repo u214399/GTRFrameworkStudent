@@ -56,8 +56,8 @@ void Renderer::parseNodes(SCN::Node* node, Camera* cam) {
 		float distance = cam->eye.distance(global_matrix.getTranslation());
 		bool must_render = true;
 		must_render &= (distance < 30);
-		Vector3f bb_center = global_matrix * node->mesh->box.center;
-		Vector3f bb_halfsize = node->mesh->box.halfsize;
+		Vector3f bb_center = global_matrix * node->aabb.center;
+		Vector3f bb_halfsize = global_matrix * node->aabb.halfsize;
 		cam->extractFrustum();
 		must_render &= (cam->testBoxInFrustum(bb_center, bb_halfsize) != CLIP_OUTSIDE);
 		if (must_render) {
@@ -66,16 +66,26 @@ void Renderer::parseNodes(SCN::Node* node, Camera* cam) {
 			values.model = node->getGlobalMatrix();
 			values.material = node->material;
 			values.distance = distance;
-			if (values.material->alpha_mode == BLEND)
+			if (values.material->alpha_mode == BLEND) {
 				transparent_to_render.push_back(values);
-			else
+				std::sort(transparent_to_render.begin(), transparent_to_render.end(), [](const sDrawCommand& s1, const sDrawCommand& s2) {
+					return s1.distance > s2.distance;
+					});
+
+			}
+			else {
 				entities_to_render.push_back(values);
+				std::sort(entities_to_render.begin(), entities_to_render.end(), [](const sDrawCommand& s1, const sDrawCommand& s2) {
+					return s1.distance < s2.distance;
+					});
+			}
 		}
 	}
 
 	for (SCN::Node* child : node->children) {
 		parseNodes(child , cam);
 	}
+
 }
 
 void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
@@ -97,10 +107,6 @@ void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 		if (entity->getType() == eEntityType::PREFAB) {
 			parseNodes(&((PrefabEntity*)entity)->root, cam);
 		}
-
-		// Store Prefab Entitys
-		// ...
-		//		Store Children Prefab Entities
 
 		// Store Lights
 		// ...
@@ -132,16 +138,12 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	
 
 
-	std::sort(entities_to_render.begin(), entities_to_render.end(), [](const sDrawCommand& s1, const sDrawCommand& s2) {
-		return s1.distance < s2.distance;
-		});
+	
 	for(sDrawCommand draw : entities_to_render){
 		renderMeshWithMaterial(draw.model, draw.mesh, draw.material);
 	}
 
-	std::sort(transparent_to_render.begin(), transparent_to_render.end(), [](const sDrawCommand& s1, const sDrawCommand& s2) {
-		return s1.distance > s2.distance;
-		});
+
 	for (sDrawCommand draw : transparent_to_render) {
 		renderMeshWithMaterial(draw.model, draw.mesh, draw.material);
 	}
