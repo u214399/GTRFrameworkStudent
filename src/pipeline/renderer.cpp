@@ -14,6 +14,7 @@
 #include "../utils/utils.h"
 #include "../extra/hdre.h"
 #include "../core/ui.h"
+#include "../pipeline/light.h"
 
 #include "scene.h"
 
@@ -95,7 +96,7 @@ void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 
 	entities_to_render.clear();
 	transparent_to_render.clear();
-
+	light_list.clear();
 	for (int i = 0; i < scene->entities.size(); i++) {
 		BaseEntity* entity = scene->entities[i];
 
@@ -107,6 +108,7 @@ void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 		if (entity->getType() == eEntityType::PREFAB) {
 			parseNodes(&((PrefabEntity*)entity)->root, cam);
 		}
+		else if (entity->getType() == eEntityType::LIGHT) light_list.push_back( (LightEntity*) entity);
 
 		// Store Lights
 		// ...
@@ -217,6 +219,31 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	shader->enable();
 
 	material->bind(shader);
+
+
+
+	//Sending the lights
+	vec3* light_pos = new vec3[light_list.size()];
+	vec3* light_color = new vec3[light_list.size()];
+	float* light_intensity = new float[light_list.size()];
+	vec3* light_dir = new vec3[light_list.size()];
+	int i = 0u;
+	for (LightEntity* light : light_list) {
+		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
+		light_intensity[i] = light->intensity;
+		light_color[i] = light->color;
+		light_dir[i] = light->root.model.frontVector();
+		i++;
+	}
+
+	shader->setUniform3Array("u_light_pos",(float*) light_pos, min(light_list.size(),10));
+	shader->setUniform3Array("u_light_color", (float*)light_color, min(light_list.size(), 10));
+	shader->setUniform1Array("u_light_intensity", (float*)light_intensity, min(light_list.size(), 10));
+
+	delete[] light_pos;
+	delete[] light_color;
+	delete[] light_intensity;
+	delete[] light_dir;
 
 	//upload uniforms
 	shader->setUniform("u_model", model);

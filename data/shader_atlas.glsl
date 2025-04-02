@@ -101,6 +101,11 @@ uniform sampler2D u_texture;
 uniform float u_time;
 uniform float u_alpha_cutoff;
 
+uniform vec3 u_light_pos[10];
+uniform vec3 u_light_color[10];
+uniform float u_light_intensity[10];
+uniform int u_lights;
+
 out vec4 FragColor;
 
 void main()
@@ -109,10 +114,22 @@ void main()
 	vec4 color = u_color;
 	color *= texture( u_texture, v_uv );
 
+	vec3 light_component = vec3(0.0);
+	for(int i = 0; i < 4; i++){
+		
+		vec3 L = normalize(u_light_pos[i] - v_world_position);
+		
+		float l_dot_v = clamp(dot(L, normalize(v_normal)),0.0,1.0);
+		light_component += u_light_intensity[i]*u_light_color[i]*l_dot_v;
+
+	}
+
+
+
 	if(color.a < u_alpha_cutoff)
 		discard;
 
-	FragColor = color;
+	FragColor = color * vec4(light_component, 1.0);
 }
 
 

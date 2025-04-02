@@ -35,6 +35,7 @@ namespace SCN {
 		std::vector<sDrawCommand> entities_to_render;
 		std::vector<sDrawCommand> transparent_to_render;
 
+		std::vector<SCN::LightEntity*> light_list;
 
 	public:
 
