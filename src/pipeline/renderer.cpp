@@ -229,6 +229,8 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	vec3* light_dir = new vec3[light_list.size()];
 	int* light_type = new int[light_list.size()];
 	int i = 0u;
+	float alpha_min = 0.1f;
+	float alpha_max = 1.0f;
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
 		light_intensity[i] = light->intensity;
@@ -241,7 +243,10 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
 	shader->setUniform3Array("u_light_color", (float*)light_color, min(light_list.size(), 10));
 	shader->setUniform1Array("u_light_intensity", (float*)light_intensity, min(light_list.size(), 10));
+	shader->setUniform3Array("u_light_dir", (float*)light_dir, min(light_list.size(), 10));
 	shader->setUniform1Array("u_type", light_type, min(light_list.size(), 10));
+	shader->setUniform("u_alpha_min", alpha_min);
+	shader->setUniform("u_alpha_max", alpha_max);
 
 	float shininnes = 5;
 	shader->setUniform("u_shine", shininnes);
