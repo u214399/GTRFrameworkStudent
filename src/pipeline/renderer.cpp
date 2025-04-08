@@ -229,7 +229,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	vec3* light_dir = new vec3[light_list.size()];
 	int* light_type = new int[light_list.size()];
 	int i = 0u;
-	float alpha_min = 0.1f;
+	float alpha_min = 0.0f;
 	float alpha_max = 1.0f;
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
