@@ -129,11 +129,11 @@ void main()
 		float intensity = u_light_intensity[i]/(d*d);
 		if(u_type[i] == 2)
 		{
-			if(dot(-L,u_light_dir[i])<cos(u_alpha_max)){
+			if(dot(L,u_light_dir[i])<cos(u_alpha_max)){
 				intensity = 0.0;
 			}
 			else {
-				intensity = intensity*((dot(-L,u_light_dir[i]) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)));
+				intensity = intensity*((dot(L,u_light_dir[i]) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)));
 			}
 		}
 		light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
