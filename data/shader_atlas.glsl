@@ -103,13 +103,14 @@ uniform float u_alpha_cutoff;
 
 uniform vec3 u_light_pos[10];
 uniform vec3 u_light_color[10];
+uniform vec3 u_light_dir[10];
 uniform float u_light_intensity[10];
 uniform int u_type[10];
 uniform float u_shine;
 uniform vec3 u_ambient_light;
-uniform float u_alpha_min;
 uniform float u_alpha_max;
-uniform vec3 u_light_dir[10];
+uniform float u_alpha_min;
+
 out vec4 FragColor;
 void main()
 {
@@ -119,23 +120,38 @@ void main()
 
 	vec3 light_component = vec3(0.0);
 	for(int i = 0; i < 4; i++){
+		vec3 L;
+		float intensity;
 		vec3 L_unnorm = u_light_pos[i] - v_world_position;
 		float d = length(L_unnorm);
-		vec3 L = normalize(u_light_pos[i] - v_world_position);
-		vec3 R = reflect(L,v_normal);
-		float r_dot_v = clamp(dot(R, normalize(v_normal)),0.0,1.0);
-		vec3 D=normalize(u_light_pos[i] - v_world_position);
-		float n_dot_v = clamp(dot(L, normalize(v_normal)),0.0,1.0);
-		float intensity = u_light_intensity[i]/(d*d);
-		if(u_type[i] == 2)
-		{
-			if(dot(-L,u_light_dir[i])<cos(u_alpha_max)){
+
+		if(u_type[i] == 1){
+			L = normalize(u_light_pos[i] - v_world_position);
+			intensity = u_light_intensity[i]/(d*d);
+		}
+
+		else if(u_type[i] == 2){
+			vec3 D = normalize(u_light_dir[i]);
+			intensity = u_light_intensity[i]/(d*d);
+			L = normalize(u_light_pos[i] - v_world_position);
+			if(dot(L,D)<cos(u_alpha_max)){
 				intensity = 0.0;
 			}
 			else {
-				intensity = intensity*(dot(L,u_light_dir[i]) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min));
+				intensity = intensity*((clamp(dot(L,D), 0.0, 1.0) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)));
 			}
+			
 		}
+
+		else if(u_type[i] == 3){
+			L = normalize(u_light_dir[i]);
+			intensity = u_light_intensity[i];
+		}
+		
+		vec3 R = reflect(L,v_normal);
+		float r_dot_v = clamp(dot(R, normalize(v_normal)),0.0,1.0);
+		float n_dot_v = clamp(dot(L, normalize(v_normal)),0.0,1.0);
+		
 		light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
 	}
 
