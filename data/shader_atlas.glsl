@@ -104,6 +104,7 @@ uniform float u_alpha_cutoff;
 uniform vec3 u_light_pos[10];
 uniform vec3 u_light_color[10];
 uniform float u_light_intensity[10];
+uniform vec3 u_ambient_light;
 uniform int u_lights;
 
 out vec4 FragColor;
@@ -116,14 +117,17 @@ void main()
 
 	vec3 light_component = vec3(0.0);
 	for(int i = 0; i < 4; i++){
-		
+		vec3 L_unnorm = u_light_pos[i] - v_world_position;
+		float d = length(L_unnorm);
 		vec3 L = normalize(u_light_pos[i] - v_world_position);
 		
 		float l_dot_v = clamp(dot(L, normalize(v_normal)),0.0,1.0);
-		light_component += u_light_intensity[i]*u_light_color[i]*l_dot_v;
+		vec3 intensity = u_light_intensity/(d*d);
+		light_component += u_light_intensity[i]*u_light_color[i]*l_dot_v + u_light_color[i];
 
 	}
 
+	light_component += u_ambient_light;
 
 
 	if(color.a < u_alpha_cutoff)
