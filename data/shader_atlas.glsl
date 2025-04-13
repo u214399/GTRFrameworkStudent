@@ -131,11 +131,20 @@ uniform vec3 u_light_color[10];
 uniform vec3 u_light_dir[10];
 uniform float u_light_intensity[10];
 uniform int u_type[10];
+
+
+uniform vec3 u_mlight_pos;
+uniform vec3 u_mlight_color;
+uniform vec3 u_mlight_dir;
+uniform float u_mlight_intensity;
+uniform int u_mtype;
+
 uniform float u_shine;
 uniform vec3 u_ambient_light;
 uniform float u_alpha_max;
 uniform float u_alpha_min;
 uniform sampler2D u_normal_map;
+uniform int u_single_pass;
 
 out vec4 FragColor;
 void main()
@@ -153,22 +162,60 @@ void main()
 
 
 	vec3 light_component = vec3(0.0);
-	for(int i = 0; i < 4; i++){
+	if(u_single_pass == 1){
+		for(int i = 0; i < 4; i++){
+			vec3 L;
+			float intensity;
+			vec3 L_unnorm = u_light_pos[i] - v_world_position;
+			float d = length(L_unnorm);
+
+
+			if(u_type[i] == 1){
+				L = normalize(u_light_pos[i] - v_world_position);
+				intensity = u_light_intensity[i]/(d*d);
+			}
+
+			else if(u_type[i] == 2){
+				vec3 D = normalize(u_light_dir[i]);
+				intensity = u_light_intensity[i]/(d*d);
+				L = normalize(u_light_pos[i] - v_world_position);
+				if(dot(L,D)<cos(u_alpha_max)){
+					intensity = 0.0;
+				}
+				else {
+					intensity *= 1 - clamp((dot(L,D) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
+				}
+			}
+
+			else if(u_type[i] == 3){
+				L = normalize(u_light_dir[i]);
+				intensity = u_light_intensity[i];
+			}
+			
+			vec3 R = reflect(L,normal);
+			float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
+			float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
+			
+			light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
+		}
+	}
+
+	else{
 		vec3 L;
 		float intensity;
-		vec3 L_unnorm = u_light_pos[i] - v_world_position;
+		vec3 L_unnorm = u_mlight_pos - v_world_position;
 		float d = length(L_unnorm);
 
 
-		if(u_type[i] == 1){
-			L = normalize(u_light_pos[i] - v_world_position);
-			intensity = u_light_intensity[i]/(d*d);
+		if(u_mtype == 1){
+			L = normalize(u_mlight_pos - v_world_position);
+			intensity = u_mlight_intensity/(d*d);
 		}
 
-		else if(u_type[i] == 2){
-			vec3 D = normalize(u_light_dir[i]);
-			intensity = u_light_intensity[i]/(d*d);
-			L = normalize(u_light_pos[i] - v_world_position);
+		else if(u_mtype == 2){
+			vec3 D = normalize(u_mlight_dir);
+			intensity = u_mlight_intensity/(d*d);
+			L = normalize(u_mlight_pos - v_world_position);
 			if(dot(L,D)<cos(u_alpha_max)){
 				intensity = 0.0;
 			}
@@ -177,16 +224,18 @@ void main()
 			}
 		}
 
-		else if(u_type[i] == 3){
-			L = normalize(u_light_dir[i]);
-			intensity = u_light_intensity[i];
+		else if(u_mtype == 3){
+			L = normalize(u_mlight_dir);
+			intensity = u_mlight_intensity;
 		}
 		
 		vec3 R = reflect(L,normal);
 		float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
 		float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
 		
-		light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
+		light_component += intensity*u_mlight_color*n_dot_v + u_mlight_color*pow(r_dot_v, u_shine)*intensity;
+
+
 	}
 
 	light_component +=u_ambient_light;
