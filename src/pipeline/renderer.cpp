@@ -142,12 +142,12 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	
 	for(sDrawCommand draw : entities_to_render){
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material);
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false);
 	}
 
 
 	for (sDrawCommand draw : transparent_to_render) {
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material);
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true);
 	}
 
 
@@ -195,7 +195,7 @@ void Renderer::renderSkybox(GFX::Texture* cubemap)
 }
 
 // Renders a mesh given its transform and material
-void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material)
+void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent)
 {
 	//in case there is nothing to do
 	if (!mesh || !mesh->getNumVertices() || !material )
@@ -253,7 +253,10 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 
 		for (int i = 0; i < light_list.size(); i++) {
 			if (i == 0)
-				glDisable(GL_BLEND);
+				if (!transparent)
+					glDisable(GL_BLEND);
+				else
+					glEnable(GL_BLEND);
 			else
 				glEnable(GL_BLEND);
 
@@ -351,7 +354,7 @@ void Renderer::showUI()
 	ImGui::Checkbox("Boundaries", &render_boundaries);
 
 	//add here your stuff
-	ImGui::Checkbox("Singlepass", &single_pass);
+	ImGui::Checkbox("Single Pass", &single_pass);
 	
 }
 

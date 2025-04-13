@@ -39,6 +39,8 @@ namespace SCN {
 
 	public:
 
+		bool single_pass = true;
+
 		bool render_wireframe;
 		bool render_boundaries;
 
@@ -65,7 +67,7 @@ namespace SCN {
 		void renderSkybox(GFX::Texture* cubemap);
 
 		//to render one mesh given its material and transformation matrix
-		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent);
 
 		void showUI();
 	};
