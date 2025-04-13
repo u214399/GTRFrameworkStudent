@@ -243,7 +243,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		}
 		i++;
 	}
-
+	
 
 	shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
 	shader->setUniform3Array("u_light_color", (float*)light_color, min(light_list.size(), 10));

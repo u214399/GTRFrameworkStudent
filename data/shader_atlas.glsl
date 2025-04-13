@@ -6,6 +6,7 @@ depth quad.vs depth.fs
 multi basic.vs multi.fs
 compute test.cs
 
+
 \test.cs
 #version 430 core
 
@@ -90,6 +91,30 @@ void main()
 
 #version 330 core
 
+mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
+  // get edge vectors of the pixel triangle
+  vec3 dp1 = dFdx(p);
+  vec3 dp2 = dFdy(p);
+  vec2 duv1 = dFdx(uv);
+  vec2 duv2 = dFdy(uv);
+
+  // solve the linear system
+  vec3 dp2perp = cross(dp2, N);
+  vec3 dp1perp = cross(N, dp1);
+  vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+  vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+  // construct a scale-invariant frame 
+  float invmax = 1.0 / sqrt(max(dot(T,T), dot(B,B)));
+  return mat3(normalize(T * invmax), normalize(B * invmax), N);
+}
+
+vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
+	normal_pixel =normal_pixel * 255./127. -128./127.;
+	mat3 TBN = cotangentFrame(N, WP, uv);
+	return normalize(TBN*normal_pixel);
+}
+
 in vec3 v_position;
 in vec3 v_world_position;
 in vec3 v_normal;
@@ -110,6 +135,7 @@ uniform float u_shine;
 uniform vec3 u_ambient_light;
 uniform float u_alpha_max;
 uniform float u_alpha_min;
+uniform sampler2D u_normal_map;
 
 out vec4 FragColor;
 void main()
@@ -118,12 +144,21 @@ void main()
 	vec4 color = u_color;
 	color *= texture( u_texture, v_uv );
 
+	vec3 texture_normal = texture(u_normal_map, uv).xyz;
+
+	texture_normal = (texture_normal * 2.0) -1.0;
+	texture_normal = normalize(texture_normal);
+
+	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
+
+
 	vec3 light_component = vec3(0.0);
 	for(int i = 0; i < 4; i++){
 		vec3 L;
 		float intensity;
 		vec3 L_unnorm = u_light_pos[i] - v_world_position;
 		float d = length(L_unnorm);
+
 
 		if(u_type[i] == 1){
 			L = normalize(u_light_pos[i] - v_world_position);
@@ -138,9 +173,8 @@ void main()
 				intensity = 0.0;
 			}
 			else {
-				intensity = intensity*((clamp(dot(L,D), 0.0, 1.0) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)));
+				intensity *= 1 - clamp((dot(L,D) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
 			}
-			
 		}
 
 		else if(u_type[i] == 3){
@@ -148,16 +182,14 @@ void main()
 			intensity = u_light_intensity[i];
 		}
 		
-		vec3 R = reflect(L,v_normal);
-		float r_dot_v = clamp(dot(R, normalize(v_normal)),0.0,1.0);
-		float n_dot_v = clamp(dot(L, normalize(v_normal)),0.0,1.0);
+		vec3 R = reflect(L,normal);
+		float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
+		float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
 		
 		light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
 	}
 
 	light_component +=u_ambient_light;
-
-
 
 
 	if(color.a < u_alpha_cutoff)
