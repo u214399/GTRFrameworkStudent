@@ -5,7 +5,7 @@ skybox basic.vs skybox.fs
 depth quad.vs depth.fs
 multi basic.vs multi.fs
 compute test.cs
-
+plain basic.vs plain.fs
 
 \test.cs
 #version 430 core
@@ -71,6 +71,20 @@ void main()
 	v_uv = a_coord;
 	gl_Position = vec4( a_vertex, 1.0 );
 }
+
+
+\plain.fs
+
+#version 330 core
+
+out vec4 FragColor;
+
+void main()
+{
+	FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+}
+
+
 
 
 \flat.fs

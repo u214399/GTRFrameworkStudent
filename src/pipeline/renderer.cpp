@@ -37,6 +37,10 @@ Renderer::Renderer(const char* shader_atlas_filename)
 
 	sphere.createSphere(1.0f);
 	sphere.uploadToVRAM();
+
+	texture = new GFX::Texture(1024,1024);
+	fbo = new GFX::FBO();
+	fbo->setTexture(texture);
 }
 
 void Renderer::setupScene()
@@ -118,10 +122,39 @@ void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 
 void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 {
+
+
+
 	this->scene = scene;
 	setupScene();
 
 	parseSceneEntities(scene, camera);
+
+	Camera light_cam;
+
+	fbo->bind();
+
+
+	glColorMask(false, false, false, false);
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	mat4 light_model = light_list[3]->root.getGlobalMatrix();
+	vec3 light_pos = light_model.getTranslation();
+
+	light_cam.lookAt(light_pos, light_model * vec3(0.f, 0.f, -1.f), vec3(0.0f, 1.0f, 0.0f));
+
+	float half_size = light_list[3]->area / 2.0f;
+
+	light_cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[3]->near_distance, light_list[3]->max_distance);
+
+	for (sDrawCommand &render_call : entities_to_render) {
+		renderPlain(light_cam, render_call.model, render_call.mesh, render_call.material);
+	}
+
+	glColorMask(true, true, true, true);
+
+	fbo->unbind();
+
 
 	//set the clear color (the background color)
 	glClearColor(scene->background_color.x, scene->background_color.y, scene->background_color.z, 1.0);
@@ -238,8 +271,8 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		light_dir[i] = light->root.model.frontVector();
 		light_type[i] = light->light_type;
 		if (light->light_type == 2){
-			alpha_min = light->cone_info.x;
-			alpha_max = light->cone_info.y;
+			alpha_min = light->cone_info.x * 6.28/360;
+			alpha_max = light->cone_info.y * 6.28/360;
 		}
 		i++;
 	}
@@ -267,8 +300,8 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 			shader->setUniform("u_mtype", light_type[i]);
 			shader->setUniform("u_alpha_min", alpha_min);
 			shader->setUniform("u_alpha_max", alpha_max);
-			float shininnes = 5;
-			shader->setUniform("u_shine", shininnes);
+
+
 			if(i!=0)
 				shader->setUniform("u_ambient_light", vec3(0.f,0.f,0.f));
 			else
@@ -307,8 +340,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		shader->setUniform("u_alpha_min", alpha_min);
 		shader->setUniform("u_alpha_max", alpha_max);
 
-		float shininnes = 5;
-		shader->setUniform("u_shine", shininnes);
+
 		shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
 
 		//upload uniforms
@@ -345,6 +377,50 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 }
 
+
+
+void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material)
+{
+	//in case there is nothing to do
+	if (!mesh || !mesh->getNumVertices() || !material)
+		return;
+	assert(glGetError() == GL_NO_ERROR);
+
+	//define locals to simplify coding
+	GFX::Shader* shader = NULL;
+	Camera* camera = &cam;
+
+	glEnable(GL_DEPTH_TEST);
+
+	//chose a shader
+	shader = GFX::Shader::Get("plain");
+
+	assert(glGetError() == GL_NO_ERROR);
+
+	//no shader? then nothing to render
+	if (!shader)
+		return;
+	shader->enable();
+
+	material->bind(shader);
+	shader->setUniform("u_model", model);
+
+	// Upload camera uniforms
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_camera_position", camera->eye);
+	
+	float t = getTime();
+	shader->setUniform("u_time", t);
+
+
+	mesh->render(GL_TRIANGLES);
+
+	shader->disable();
+
+	//set the render state as it was before to avoid problems with future renders
+	glDisable(GL_BLEND);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
 #ifndef SKIP_IMGUI
 
 void Renderer::showUI()
@@ -355,6 +431,14 @@ void Renderer::showUI()
 
 	//add here your stuff
 	ImGui::Checkbox("Single Pass", &single_pass);
+	if (ImGui::SliderFloat("Shininess", &shine, 0, 100)) {
+		for (int i = 0; i < entities_to_render.size(); i++) {
+			entities_to_render[i].material->shininess = shine;
+		}
+		for (int i = 0; i < transparent_to_render.size(); i++) {
+			transparent_to_render[i].material->shininess = shine;
+		}
+	}
 	
 }
 

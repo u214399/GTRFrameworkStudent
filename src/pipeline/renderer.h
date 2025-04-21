@@ -43,8 +43,12 @@ namespace SCN {
 
 		bool render_wireframe;
 		bool render_boundaries;
+		float shine=5;
 
 		GFX::Texture* skybox_cubemap;
+
+		GFX::Texture* texture;
+		GFX::FBO* fbo;
 
 		SCN::Scene* scene;
 
@@ -68,6 +72,8 @@ namespace SCN {
 
 		//to render one mesh given its material and transformation matrix
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent);
+
+		void renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
 		void showUI();
 	};
