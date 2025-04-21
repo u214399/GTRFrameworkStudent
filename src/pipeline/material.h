@@ -45,6 +45,7 @@ namespace SCN {
 	public:
 
 		//static manager to reuse materials
+		float shininess = 5;
 		static std::map<std::string, Material*> sMaterials;
 		static Material* Get(const char* name);
 		static uint32 s_last_index;
