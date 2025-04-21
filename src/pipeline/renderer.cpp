@@ -41,6 +41,7 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	texture = new GFX::Texture(1024,1024);
 	fbo = new GFX::FBO();
 	fbo->setTexture(texture);
+	fbo->setDepthOnly(1024, 1024);
 }
 
 void Renderer::setupScene()
@@ -175,12 +176,12 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	
 	for(sDrawCommand draw : entities_to_render){
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false);
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
 	}
 
 
 	for (sDrawCommand draw : transparent_to_render) {
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true);
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
 	}
 
 
@@ -228,7 +229,7 @@ void Renderer::renderSkybox(GFX::Texture* cubemap)
 }
 
 // Renders a mesh given its transform and material
-void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent)
+void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent,Camera cam)
 {
 	//in case there is nothing to do
 	if (!mesh || !mesh->getNumVertices() || !material )
@@ -263,6 +264,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	int* light_type = new int[light_list.size()];
 	float alpha_min;
 	float alpha_max;
+	float shadow_bias = 0.01f;
 	int i = 0u;
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
@@ -279,6 +281,8 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	
 	
 	if (!single_pass) {
+		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
+		shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 0);
 		glDepthFunc(GL_LEQUAL);
 
@@ -292,7 +296,6 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 					glEnable(GL_BLEND);
 			else
 				glEnable(GL_BLEND);
-
 			shader->setUniform("u_mlight_pos", light_pos[i]);
 			shader->setUniform("u_mlight_color", light_color[i]);
 			shader->setUniform("u_mlight_intensity", light_intensity[i]);
@@ -300,6 +303,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 			shader->setUniform("u_mtype", light_type[i]);
 			shader->setUniform("u_alpha_min", alpha_min);
 			shader->setUniform("u_alpha_max", alpha_max);
+			shader->setUniform("u_shadow_bias", shadow_bias);
 
 
 			if(i!=0)
@@ -331,6 +335,9 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	}
 		
 	else {
+
+		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
+		shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 1);
 		shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
 		shader->setUniform3Array("u_light_color", (float*)light_color, min(light_list.size(), 10));
@@ -339,6 +346,8 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		shader->setUniform1Array("u_type", light_type, min(light_list.size(), 10));
 		shader->setUniform("u_alpha_min", alpha_min);
 		shader->setUniform("u_alpha_max", alpha_max);
+
+		shader->setUniform("u_shadow_bias", shadow_bias);
 
 
 		shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
@@ -388,12 +397,12 @@ void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SC
 
 	//define locals to simplify coding
 	GFX::Shader* shader = NULL;
-	Camera* camera = &cam;
-
 	glEnable(GL_DEPTH_TEST);
 
 	//chose a shader
 	shader = GFX::Shader::Get("plain");
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CW);
 
 	assert(glGetError() == GL_NO_ERROR);
 
@@ -406,8 +415,8 @@ void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SC
 	shader->setUniform("u_model", model);
 
 	// Upload camera uniforms
-	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-	shader->setUniform("u_camera_position", camera->eye);
+	shader->setUniform("u_viewprojection", cam.viewprojection_matrix);
+	shader->setUniform("u_camera_position", cam.eye);
 	
 	float t = getTime();
 	shader->setUniform("u_time", t);
@@ -418,6 +427,9 @@ void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SC
 	shader->disable();
 
 	//set the render state as it was before to avoid problems with future renders
+	glDisable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+
 	glDisable(GL_BLEND);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }

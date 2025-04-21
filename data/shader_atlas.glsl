@@ -160,12 +160,27 @@ uniform float u_alpha_min;
 uniform sampler2D u_normal_map;
 uniform int u_single_pass;
 
+uniform sampler2D u_shadowmap;
+uniform mat4 u_shadowvp;
+
+uniform float u_shadow_bias;
+
 out vec4 FragColor;
 void main()
 {
+
+	vec4 proj_pos =u_shadowvp*vec4(v_world_position,1.0);
+	float real_depth=(proj_pos.z-u_shadow_bias)/proj_pos.w;
+	proj_pos=proj_pos/proj_pos.w;
+	proj_pos=(proj_pos+1)/2;
+	real_depth=(real_depth+1)/2;
+	vec2 proj_coords = vec2(proj_pos.x,proj_pos.y);
+
 	vec2 uv = v_uv;
 	vec4 color = u_color;
 	color *= texture( u_texture, v_uv );
+
+	
 
 	vec3 texture_normal = texture(u_normal_map, uv).xyz;
 
@@ -177,6 +192,9 @@ void main()
 
 	vec3 light_component = vec3(0.0);
 	if(u_single_pass == 1){
+	
+	
+		
 		for(int i = 0; i < 4; i++){
 			vec3 L;
 			float intensity;
@@ -202,8 +220,12 @@ void main()
 			}
 
 			else if(u_type[i] == 3){
-				L = normalize(u_light_dir[i]);
-				intensity = u_light_intensity[i];
+				if(real_depth <= texture(u_shadowmap,proj_coords).r){
+		
+		
+					L = normalize(u_light_dir[i]);
+					intensity = u_light_intensity[i];
+				}
 			}
 			
 			vec3 R = reflect(L,normal);
@@ -239,8 +261,11 @@ void main()
 		}
 
 		else if(u_mtype == 3){
-			L = normalize(u_mlight_dir);
-			intensity = u_mlight_intensity;
+			if(real_depth <= texture(u_shadowmap,proj_coords).r){
+				L = normalize(u_mlight_dir);
+				intensity = u_mlight_intensity;
+			
+			}
 		}
 		
 		vec3 R = reflect(L,normal);
