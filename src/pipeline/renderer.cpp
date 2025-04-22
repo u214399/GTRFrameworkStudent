@@ -42,6 +42,15 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	fbo = new GFX::FBO();
 	fbo->setTexture(texture);
 	fbo->setDepthOnly(1024, 1024);
+    
+	// Initialize shadow map FBOs
+	for (int i = 0; i < MAX_SHADOW_MAPS; i++) {
+		shadow_textures[i] = new GFX::Texture(1024, 1024);
+		shadow_fbos[i] = new GFX::FBO();
+		shadow_fbos[i]->setTexture(shadow_textures[i]);
+		shadow_fbos[i]->setDepthOnly(1024, 1024);
+	}
+	active_shadow_maps = 0;
 }
 
 void Renderer::setupScene()
@@ -123,39 +132,71 @@ void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 
 void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 {
-
-
-
 	this->scene = scene;
 	setupScene();
 
 	parseSceneEntities(scene, camera);
 
-	Camera light_cam;
+	// Reset active shadow maps count
+	active_shadow_maps = 0;
 
-	fbo->bind();
+	// Generate shadow maps for different lights that cast shadows
+	for (int i = 0; i < light_list.size() && active_shadow_maps < MAX_SHADOW_MAPS; i++) {
+		SCN::LightEntity* light = light_list[i];
+		
+		// Skip lights that don't cast shadows
+		if (!light->cast_shadows)
+			continue;
 
+		mat4 light_model = light->root.getGlobalMatrix();
+		vec3 light_pos = light_model.getTranslation();
+		vec3 light_dir = light_model.frontVector();
 
-	glColorMask(false, false, false, false);
-	glClear(GL_DEPTH_BUFFER_BIT);
+		// Set up light camera based on light type
+		switch (light->light_type) {
+			case eLightType::DIRECTIONAL: {
+				// Orthographic projection for directional lights
+				float half_size = light->area / 2.0f;
+				light_cameras[active_shadow_maps].lookAt(light_pos, light_pos + light_dir, vec3(0.0f, 1.0f, 0.0f));
+				light_cameras[active_shadow_maps].setOrthographic(
+					-half_size, half_size, 
+					-half_size, half_size, 
+					light->near_distance, 
+					light->max_distance
+				);
+				break;
+			}
+			case eLightType::SPOT: {
+				// Perspective projection for spot lights
+				float aspect = 1.0f; // Shadow maps are square
+				float fov = light->cone_info.y * 2.0f; // Use the cone angle as FOV
+				light_cameras[active_shadow_maps].lookAt(light_pos, light_pos + light_dir, vec3(0.0f, 1.0f, 0.0f));
+				light_cameras[active_shadow_maps].setPerspective(
+					fov, 
+					aspect, 
+					light->near_distance, 
+					light->max_distance
+				);
+				break;
+			}
+			default:
+				continue; // Skip unsupported light types
+		}
 
-	mat4 light_model = light_list[3]->root.getGlobalMatrix();
-	vec3 light_pos = light_model.getTranslation();
+		// Render shadow map for this light
+		shadow_fbos[active_shadow_maps]->bind();
+		glColorMask(false, false, false, false);
+		glClear(GL_DEPTH_BUFFER_BIT);
 
-	light_cam.lookAt(light_pos, light_model * vec3(0.f, 0.f, -1.f), vec3(0.0f, 1.0f, 0.0f));
+		for (sDrawCommand &render_call : entities_to_render) {
+			renderPlain(light_cameras[active_shadow_maps], render_call.model, render_call.mesh, render_call.material);
+		}
 
-	float half_size = light_list[3]->area / 2.0f;
-
-	light_cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[3]->near_distance, light_list[3]->max_distance);
-
-	for (sDrawCommand &render_call : entities_to_render) {
-		renderPlain(light_cam, render_call.model, render_call.mesh, render_call.material);
+		glColorMask(true, true, true, true);
+		shadow_fbos[active_shadow_maps]->unbind();
+		
+		active_shadow_maps++;
 	}
-
-	glColorMask(true, true, true, true);
-
-	fbo->unbind();
-
 
 	//set the clear color (the background color)
 	glClearColor(scene->background_color.x, scene->background_color.y, scene->background_color.z, 1.0);
@@ -167,24 +208,14 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	//render skybox
 	if(skybox_cubemap)
 		renderSkybox(skybox_cubemap);
-
-	// HERE =====================
-	// TODO: RENDER RENDERABLES
-	// ==========================
-	
-
-
 	
 	for(sDrawCommand draw : entities_to_render){
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false, light_cameras);
 	}
-
 
 	for (sDrawCommand draw : transparent_to_render) {
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true, light_cameras);
 	}
-
-
 }
 
 
@@ -229,7 +260,7 @@ void Renderer::renderSkybox(GFX::Texture* cubemap)
 }
 
 // Renders a mesh given its transform and material
-void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent,Camera cam)
+void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent, Camera light_cameras[])
 {
 	//in case there is nothing to do
 	if (!mesh || !mesh->getNumVertices() || !material )
@@ -254,24 +285,38 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 
 	material->bind(shader);
 
-
-
 	//Sending the lights
 	vec3* light_pos = new vec3[light_list.size()];
 	vec3* light_color = new vec3[light_list.size()];
 	float* light_intensity = new float[light_list.size()];
 	vec3* light_dir = new vec3[light_list.size()];
 	int* light_type = new int[light_list.size()];
+	int* light_shadow_map_index = new int[light_list.size()];
 	float alpha_min;
 	float alpha_max;
 	float shadow_bias = 0.01f;
 	int i = 0u;
+	int shadow_map_index = 0;
+	
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
 		light_intensity[i] = light->intensity;
 		light_color[i] = light->color;
 		light_dir[i] = light->root.model.frontVector();
 		light_type[i] = light->light_type;
+		
+		// Check if this light has a shadow map
+		light_shadow_map_index[i] = -1; // Default: no shadow map
+		if (light->cast_shadows) {
+			for (int j = 0; j < active_shadow_maps; j++) {
+				// Compare light position to find matching shadow map
+				if (light_pos[i].distance(light_cameras[j].eye) < 0.001f) {
+					light_shadow_map_index[i] = j;
+					break;
+				}
+			}
+		}
+		
 		if (light->light_type == 2){
 			alpha_min = light->cone_info.x * 6.28/360;
 			alpha_max = light->cone_info.y * 6.28/360;
@@ -279,10 +324,33 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		i++;
 	}
 	
+	// Set number of active shadow maps and bind them
+	shader->setUniform("u_active_shadow_maps", active_shadow_maps);
+	
+	// Create arrays to hold matrices and textures
+	Matrix44 shadow_matrices[MAX_SHADOW_MAPS];
+	
+	// Fill the arrays
+	for (int j = 0; j < active_shadow_maps; j++) {
+		shadow_matrices[j] = light_cameras[j].viewprojection_matrix;
+		
+		// Use correct array syntax for textures
+		char uniform_name[32];
+		sprintf(uniform_name, "u_shadow_textures[%d]", j);
+		shader->setUniform(uniform_name, shadow_fbos[j]->depth_texture, 2 + j); // Use texture units starting from 2
+	}
+	
+	// Set matrix array all at once if any shadows are active
+	if (active_shadow_maps > 0) {
+		shader->setMatrix44Array("u_shadow_matrices", shadow_matrices, active_shadow_maps);
+	}
+	
 	
 	if (!single_pass) {
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
-		shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
+		// Single light implementation, not updated for this assignment
+		// Only included for compatibility
+		shader->setUniform("u_shadowmap_legacy", shadow_fbos[0]->depth_texture, 2);
+		shader->setUniform("u_shadowvp_legacy", light_cameras[0].viewprojection_matrix);
 		shader->setUniform("u_single_pass", 0);
 		glDepthFunc(GL_LEQUAL);
 
@@ -304,7 +372,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 			shader->setUniform("u_alpha_min", alpha_min);
 			shader->setUniform("u_alpha_max", alpha_max);
 			shader->setUniform("u_shadow_bias", shadow_bias);
-
+			shader->setUniform("u_mlight_shadow_index", light_shadow_map_index[i]);
 
 			if(i!=0)
 				shader->setUniform("u_ambient_light", vec3(0.f,0.f,0.f));
@@ -330,25 +398,20 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		}
 		glDisable(GL_BLEND);
 		glDepthFunc(GL_LESS);
-
-
 	}
-		
 	else {
-
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
-		shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
+		// Multi-light implementation with multiple shadow maps
 		shader->setUniform("u_single_pass", 1);
 		shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
 		shader->setUniform3Array("u_light_color", (float*)light_color, min(light_list.size(), 10));
 		shader->setUniform1Array("u_light_intensity", (float*)light_intensity, min(light_list.size(), 10));
 		shader->setUniform3Array("u_light_dir", (float*)light_dir, min(light_list.size(), 10));
 		shader->setUniform1Array("u_type", light_type, min(light_list.size(), 10));
+		shader->setUniform1Array("u_light_shadow_index", light_shadow_map_index, min(light_list.size(), 10));
 		shader->setUniform("u_alpha_min", alpha_min);
 		shader->setUniform("u_alpha_max", alpha_max);
-
 		shader->setUniform("u_shadow_bias", shadow_bias);
-
+		shader->setUniform("u_num_lights", (int)min(light_list.size(), 10));
 
 		shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
 
@@ -377,7 +440,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	delete[] light_intensity;
 	delete[] light_dir;
 	delete[] light_type;
-
+	delete[] light_shadow_map_index;
 
 	shader->disable();
 
@@ -437,7 +500,6 @@ void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SC
 
 void Renderer::showUI()
 {
-		
 	ImGui::Checkbox("Wireframe", &render_wireframe);
 	ImGui::Checkbox("Boundaries", &render_boundaries);
 
@@ -452,6 +514,58 @@ void Renderer::showUI()
 		}
 	}
 	
+	// Shadow map related settings
+	ImGui::Separator();
+	ImGui::Text("Shadow Maps: %d active", active_shadow_maps);
+	
+	// Light settings
+	if (ImGui::TreeNode("Lights")) {
+		for (int i = 0; i < light_list.size(); i++) {
+			SCN::LightEntity* light = light_list[i];
+			
+			char light_name[32];
+			sprintf(light_name, "Light %d", i);
+			
+			if (ImGui::TreeNode(light_name)) {
+				// Light type selection
+				const char* light_types[] = { "No Light", "Point", "Spot", "Directional" };
+				int current_type = (int)light->light_type;
+				if (ImGui::Combo("Light Type", &current_type, light_types, IM_ARRAYSIZE(light_types))) {
+					light->light_type = (SCN::eLightType)current_type;
+				}
+				
+				// Shadow casting
+				ImGui::Checkbox("Cast Shadows", &light->cast_shadows);
+				ImGui::SliderFloat("Shadow Bias", &light->shadow_bias, 0.0001f, 0.01f, "%.5f");
+				
+				// Light parameters based on type
+				ImGui::ColorEdit3("Color", &light->color.x);
+				ImGui::SliderFloat("Intensity", &light->intensity, 0.0f, 10.0f);
+				ImGui::SliderFloat("Near Distance", &light->near_distance, 0.01f, 10.0f);
+				ImGui::SliderFloat("Max Distance", &light->max_distance, 10.0f, 1000.0f);
+				
+				// Type-specific parameters
+				if (light->light_type == SCN::eLightType::DIRECTIONAL) {
+					ImGui::SliderFloat("Area Size", &light->area, 10.0f, 5000.0f);
+				}
+				else if (light->light_type == SCN::eLightType::SPOT) {
+					ImGui::SliderFloat("Inner Cone Angle", &light->cone_info.x, 0.0f, light->cone_info.y);
+					ImGui::SliderFloat("Outer Cone Angle", &light->cone_info.y, light->cone_info.x, 90.0f);
+				}
+				
+				ImGui::TreePop();
+			}
+		}
+		ImGui::TreePop();
+	}
+	
+	// Scene shadow bias slider
+	static float global_shadow_bias = 0.001f;
+	if (ImGui::SliderFloat("Global Shadow Bias", &global_shadow_bias, 0.0001f, 0.01f, "%.5f")) {
+		for (auto light : light_list) {
+			light->shadow_bias = global_shadow_bias;
+		}
+	}
 }
 
 #else

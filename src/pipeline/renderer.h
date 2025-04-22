@@ -50,6 +50,13 @@ namespace SCN {
 		GFX::Texture* texture;
 		GFX::FBO* fbo;
 
+		// For multiple shadow maps
+		static const int MAX_SHADOW_MAPS = 4;
+		GFX::Texture* shadow_textures[MAX_SHADOW_MAPS];
+		GFX::FBO* shadow_fbos[MAX_SHADOW_MAPS];
+		Camera light_cameras[MAX_SHADOW_MAPS];
+		int active_shadow_maps = 0;
+
 		SCN::Scene* scene;
 
 		//updated every frame
@@ -71,7 +78,7 @@ namespace SCN {
 		void renderSkybox(GFX::Texture* cubemap);
 
 		//to render one mesh given its material and transformation matrix
-		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent, Camera cam);
+		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent, Camera light_cameras[]);
 
 		void renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
