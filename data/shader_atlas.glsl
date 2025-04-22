@@ -139,19 +139,22 @@ uniform vec4 u_color;
 uniform sampler2D u_texture;
 uniform float u_time;
 uniform float u_alpha_cutoff;
+uniform vec3 u_camera_position;
 
 uniform vec3 u_light_pos[10];
 uniform vec3 u_light_color[10];
 uniform vec3 u_light_dir[10];
 uniform float u_light_intensity[10];
 uniform int u_type[10];
-
+uniform int u_light_shadow_index[10];
+uniform int u_num_lights;
 
 uniform vec3 u_mlight_pos;
 uniform vec3 u_mlight_color;
 uniform vec3 u_mlight_dir;
 uniform float u_mlight_intensity;
 uniform int u_mtype;
+uniform int u_mlight_shadow_index;
 
 uniform float u_shine;
 uniform vec3 u_ambient_light;
@@ -160,54 +163,83 @@ uniform float u_alpha_min;
 uniform sampler2D u_normal_map;
 uniform int u_single_pass;
 
-uniform sampler2D u_shadowmap;
-uniform mat4 u_shadowvp;
+// Multiple shadow maps
+uniform int u_active_shadow_maps;
+uniform sampler2D u_shadow_textures[4];
+uniform mat4 u_shadow_matrices[4];
+
+// Legacy single shadow map
+uniform sampler2D u_shadowmap_legacy;
+uniform mat4 u_shadowvp_legacy;
 
 uniform float u_shadow_bias;
 
 out vec4 FragColor;
+
+// Helper function to check if point is in shadow
+float isInShadow(vec3 world_pos, int shadow_map_index) {
+    if (shadow_map_index < 0 || shadow_map_index >= u_active_shadow_maps)
+        return 1.0; // No shadow map for this light, assume not in shadow
+        
+    // Project position to shadow map space
+    vec4 proj_pos = u_shadow_matrices[shadow_map_index] * vec4(world_pos, 1.0);
+    float real_depth = (proj_pos.z - u_shadow_bias) / proj_pos.w;
+    
+    // Convert to texture coordinates [0,1]
+    proj_pos = proj_pos / proj_pos.w;
+    proj_pos = (proj_pos + 1.0) / 2.0;
+    real_depth = (real_depth + 1.0) / 2.0;
+    
+    // Check if outside shadow map
+    if (proj_pos.x < 0.0 || proj_pos.x > 1.0 || 
+        proj_pos.y < 0.0 || proj_pos.y > 1.0 || 
+        proj_pos.z < 0.0 || proj_pos.z > 1.0)
+        return 1.0;
+        
+    // Compare depths
+    float shadow_depth = texture(u_shadow_textures[shadow_map_index], proj_pos.xy).r;
+    return (real_depth <= shadow_depth) ? 1.0 : 0.0;
+}
+
 void main()
 {
-
-	vec4 proj_pos =u_shadowvp*vec4(v_world_position,1.0);
-	float real_depth=(proj_pos.z-u_shadow_bias)/proj_pos.w;
-	proj_pos=proj_pos/proj_pos.w;
-	proj_pos=(proj_pos+1)/2;
-	real_depth=(real_depth+1)/2;
-	vec2 proj_coords = vec2(proj_pos.x,proj_pos.y);
+    // For legacy single shadow map support
+    vec4 proj_pos = u_shadowvp_legacy * vec4(v_world_position, 1.0);
+    float real_depth = (proj_pos.z - u_shadow_bias) / proj_pos.w;
+    proj_pos = proj_pos / proj_pos.w;
+    proj_pos = (proj_pos + 1.0) / 2.0;
+    real_depth = (real_depth + 1.0) / 2.0;
+    vec2 proj_coords = vec2(proj_pos.x, proj_pos.y);
 
 	vec2 uv = v_uv;
 	vec4 color = u_color;
-	color *= texture( u_texture, v_uv );
-
-	
+	color *= texture(u_texture, v_uv);
 
 	vec3 texture_normal = texture(u_normal_map, uv).xyz;
-
 	texture_normal = (texture_normal * 2.0) -1.0;
 	texture_normal = normalize(texture_normal);
 
 	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
 
-
 	vec3 light_component = vec3(0.0);
 	if(u_single_pass == 1){
-	
-	
-		
-		for(int i = 0; i < 4; i++){
+		for(int i = 0; i < u_num_lights; i++){
 			vec3 L;
-			float intensity;
+			float intensity = 0.0;
 			vec3 L_unnorm = u_light_pos[i] - v_world_position;
 			float d = length(L_unnorm);
+            float in_shadow = 1.0;
+            
+            // Check shadow for this light
+            if (u_light_shadow_index[i] >= 0) {
+                in_shadow = isInShadow(v_world_position, u_light_shadow_index[i]);
+            }
 
-
-			if(u_type[i] == 1){
+			if(u_type[i] == 1){ // Point light
 				L = normalize(u_light_pos[i] - v_world_position);
 				intensity = u_light_intensity[i]/(d*d);
 			}
-
-			else if(u_type[i] == 2){
+			else if(u_type[i] == 2){ // Spot light
 				vec3 D = normalize(u_light_dir[i]);
 				intensity = u_light_intensity[i]/(d*d);
 				L = normalize(u_light_pos[i] - v_world_position);
@@ -218,37 +250,34 @@ void main()
 					intensity *= 1 - clamp((dot(L,D) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
 				}
 			}
-
-			else if(u_type[i] == 3){
-				if(real_depth <= texture(u_shadowmap,proj_coords).r){
-		
-		
-					L = normalize(u_light_dir[i]);
-					intensity = u_light_intensity[i];
-				}
+			else if(u_type[i] == 3){ // Directional light
+				L = normalize(u_light_dir[i]);
+				intensity = u_light_intensity[i];
 			}
 			
-			vec3 R = reflect(L,normal);
-			float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
-			float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
-			
-			light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
+			if (intensity > 0.0 && in_shadow > 0.0) {
+				vec3 R = reflect(-L, normal);
+				float r_dot_v = clamp(dot(R, normalize(u_camera_position - v_world_position)), 0.0, 1.0);
+				float n_dot_l = clamp(dot(normal, L), 0.0, 1.0);
+				
+				light_component += intensity * u_light_color[i] * n_dot_l * in_shadow;
+				light_component += intensity * u_light_color[i] * pow(r_dot_v, u_shine) * in_shadow;
+			}
 		}
 	}
-
-	else{
+	else {
+		// Legacy single light mode
 		vec3 L;
-		float intensity;
+		float intensity = 0.0;
 		vec3 L_unnorm = u_mlight_pos - v_world_position;
 		float d = length(L_unnorm);
+        float in_shadow = 1.0;
 
-
-		if(u_mtype == 1){
+		if(u_mtype == 1){ // Point light
 			L = normalize(u_mlight_pos - v_world_position);
 			intensity = u_mlight_intensity/(d*d);
 		}
-
-		else if(u_mtype == 2){
+		else if(u_mtype == 2){ // Spot light
 			vec3 D = normalize(u_mlight_dir);
 			intensity = u_mlight_intensity/(d*d);
 			L = normalize(u_mlight_pos - v_world_position);
@@ -259,26 +288,28 @@ void main()
 				intensity *= 1 - clamp((dot(L,D) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
 			}
 		}
-
-		else if(u_mtype == 3){
-			if(real_depth <= texture(u_shadowmap,proj_coords).r){
+		else if(u_mtype == 3){ // Directional light
+			if(real_depth <= texture(u_shadowmap_legacy, proj_coords).r){
 				L = normalize(u_mlight_dir);
 				intensity = u_mlight_intensity;
-			
+				in_shadow = 1.0;
+			}
+			else {
+				in_shadow = 0.0;
 			}
 		}
 		
-		vec3 R = reflect(L,normal);
-		float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
-		float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
-		
-		light_component += intensity*u_mlight_color*n_dot_v + u_mlight_color*pow(r_dot_v, u_shine)*intensity;
-
-
+		if (intensity > 0.0 && in_shadow > 0.0) {
+			vec3 R = reflect(-L, normal);
+			float r_dot_v = clamp(dot(R, normalize(u_camera_position - v_world_position)), 0.0, 1.0);
+			float n_dot_l = clamp(dot(normal, L), 0.0, 1.0);
+			
+			light_component += intensity * u_mlight_color * n_dot_l * in_shadow;
+			light_component += intensity * u_mlight_color * pow(r_dot_v, u_shine) * in_shadow;
+		}
 	}
 
-	light_component +=u_ambient_light;
-
+	light_component += u_ambient_light;
 
 	if(color.a < u_alpha_cutoff)
 		discard;

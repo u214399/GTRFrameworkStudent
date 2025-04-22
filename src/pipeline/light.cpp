@@ -10,7 +10,7 @@ SCN::LightEntity::LightEntity()
 	cone_info.set(25, 40);
 	intensity = 1;
 	max_distance = 100;
-	cast_shadows = false;
+	cast_shadows = true;
 	shadow_bias = 0.001;
 	near_distance = 0.1;
 	area = 1000;
