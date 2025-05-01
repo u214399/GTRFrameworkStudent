@@ -49,6 +49,7 @@ namespace SCN {
 
 		GFX::Texture* texture;
 		GFX::FBO* fbo;
+		GFX::FBO* gbuffer_fbo;
 
 		SCN::Scene* scene;
 

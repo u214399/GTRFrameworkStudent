@@ -159,13 +159,17 @@ uniform float u_alpha_max;
 uniform float u_alpha_min;
 uniform sampler2D u_normal_map;
 uniform int u_single_pass;
+uniform int location;
 
 uniform sampler2D u_shadowmap;
 uniform mat4 u_shadowvp;
 
 uniform float u_shadow_bias;
 
-out vec4 FragColor;
+//out vec4 FragColor;
+layout(location = 0) out vec4 gbuffer_albedo;
+layout(location = 1) out vec4 gbuffer_normal_mat;
+
 void main()
 {
 
@@ -188,8 +192,14 @@ void main()
 	texture_normal = normalize(texture_normal);
 
 	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
-
-
+	normal = normal * vec3(0.5);
+	normal = normal + vec3(0.5);
+	
+	gbuffer_normal_mat = vec4(normal,1.0);
+	
+	normal = normal - vec3(0.5);
+	normal = normal / vec3(0.5);
+	
 	vec3 light_component = vec3(0.0);
 	if(u_single_pass == 1){
 	
@@ -283,7 +293,8 @@ void main()
 	if(color.a < u_alpha_cutoff)
 		discard;
 
-	FragColor = color * vec4(light_component, 1.0);
+	//FragColor = color * vec4(light_component, 1.0);
+	gbuffer_albedo = color;
 }
 
 
@@ -296,13 +307,13 @@ in vec3 v_world_position;
 
 uniform samplerCube u_texture;
 uniform vec3 u_camera_position;
-out vec4 FragColor;
+out vec4 gbuffer_albedo;
 
 void main()
 {
 	vec3 E = v_world_position - u_camera_position;
 	vec4 color = texture( u_texture, E );
-	FragColor = color;
+	gbuffer_albedo = color;
 }
 
 

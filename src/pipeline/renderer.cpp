@@ -42,6 +42,11 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	fbo = new GFX::FBO();
 	fbo->setTexture(texture);
 	fbo->setDepthOnly(1024, 1024);
+
+	
+	gbuffer_fbo = new GFX::FBO();
+	gbuffer_fbo->create(1024, 1024, 2, GL_RGBA, GL_UNSIGNED_BYTE, true);
+
 }
 
 void Renderer::setupScene()
@@ -135,9 +140,11 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	fbo->bind();
 
-
 	glColorMask(false, false, false, false);
 	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glDrawBuffer(GL_NONE);
+	glViewport(0, 0, 1024, 1024);
 
 	mat4 light_model = light_list[3]->root.getGlobalMatrix();
 	vec3 light_pos = light_model.getTranslation();
@@ -155,6 +162,18 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	glColorMask(true, true, true, true);
 
 	fbo->unbind();
+
+	gbuffer_fbo->bind();
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	for (sDrawCommand& call : entities_to_render) {
+		renderMeshWithMaterial(call.model, call.mesh, call.material, false, light_cam);
+	}
+
+	gbuffer_fbo->unbind();
+
+
 
 
 	//set the clear color (the background color)
@@ -229,7 +248,7 @@ void Renderer::renderSkybox(GFX::Texture* cubemap)
 }
 
 // Renders a mesh given its transform and material
-void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent,Camera cam)
+void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent,Camera light_cam)
 {
 	//in case there is nothing to do
 	if (!mesh || !mesh->getNumVertices() || !material )
@@ -264,7 +283,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	int* light_type = new int[light_list.size()];
 	float alpha_min;
 	float alpha_max;
-	float shadow_bias = 0.01f;
+	float shadow_bias = 0.001f;
 	int i = 0u;
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
@@ -282,7 +301,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	
 	if (!single_pass) {
 		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
-		shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
+		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 0);
 		glDepthFunc(GL_LEQUAL);
 
@@ -337,7 +356,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	else {
 
 		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
-		shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
+		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 1);
 		shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
 		shader->setUniform3Array("u_light_color", (float*)light_color, min(light_list.size(), 10));
