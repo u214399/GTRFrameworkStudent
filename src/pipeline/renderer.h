@@ -44,10 +44,11 @@ namespace SCN {
 		bool render_wireframe;
 		bool render_boundaries;
 		float shine=5;
-
+		int texture_slots;
 		GFX::Texture* skybox_cubemap;
 
 		GFX::Texture* texture;
+		GFX::Texture* depth_texture;
 		GFX::FBO* fbo;
 		GFX::FBO* gbuffer_fbo;
 
@@ -72,7 +73,11 @@ namespace SCN {
 		void renderSkybox(GFX::Texture* cubemap);
 
 		//to render one mesh given its material and transformation matrix
+
+		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent);
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent, Camera cam);
+
+		void renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
 		void renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 

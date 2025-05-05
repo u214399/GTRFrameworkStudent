@@ -26,6 +26,7 @@ GFX::Mesh sphere;
 
 Renderer::Renderer(const char* shader_atlas_filename)
 {
+	texture_slots = 2;
 	render_wireframe = false;
 	render_boundaries = false;
 	scene = nullptr;
@@ -45,8 +46,11 @@ Renderer::Renderer(const char* shader_atlas_filename)
 
 	
 	gbuffer_fbo = new GFX::FBO();
-	gbuffer_fbo->create(1024, 1024, 2, GL_RGBA, GL_UNSIGNED_BYTE, true);
+	gbuffer_fbo->create(1024, 1024, texture_slots, GL_RGBA, GL_UNSIGNED_BYTE, true);
 
+	depth_texture = new GFX::Texture(1024, 1024);
+	gbuffer_fbo->setTexture(depth_texture);
+	gbuffer_fbo->setDepthOnly(1024, 1024);
 }
 
 void Renderer::setupScene()
@@ -176,6 +180,8 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 
 
+
+
 	//set the clear color (the background color)
 	glClearColor(scene->background_color.x, scene->background_color.y, scene->background_color.z, 1.0);
 
@@ -195,12 +201,14 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	
 	for(sDrawCommand draw : entities_to_render){
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
+		//renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
+		renderDeferred(draw.model, draw.mesh, draw.material);
 	}
 
 
 	for (sDrawCommand draw : transparent_to_render) {
-		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
+		//renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
+		renderDeferred(draw.model, draw.mesh, draw.material);
 	}
 
 
@@ -248,7 +256,7 @@ void Renderer::renderSkybox(GFX::Texture* cubemap)
 }
 
 // Renders a mesh given its transform and material
-void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent,Camera light_cam)
+void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent)
 {
 	//in case there is nothing to do
 	if (!mesh || !mesh->getNumVertices() || !material )
@@ -300,8 +308,6 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	
 	
 	if (!single_pass) {
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
-		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 0);
 		glDepthFunc(GL_LEQUAL);
 
@@ -354,9 +360,6 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	}
 		
 	else {
-
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
-		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 1);
 		shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
 		shader->setUniform3Array("u_light_color", (float*)light_color, min(light_list.size(), 10));
@@ -407,51 +410,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 
 
 
-void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material)
-{
-	//in case there is nothing to do
-	if (!mesh || !mesh->getNumVertices() || !material)
-		return;
-	assert(glGetError() == GL_NO_ERROR);
 
-	//define locals to simplify coding
-	GFX::Shader* shader = NULL;
-	glEnable(GL_DEPTH_TEST);
-
-	//chose a shader
-	shader = GFX::Shader::Get("plain");
-	glEnable(GL_CULL_FACE);
-	glFrontFace(GL_CW);
-
-	assert(glGetError() == GL_NO_ERROR);
-
-	//no shader? then nothing to render
-	if (!shader)
-		return;
-	shader->enable();
-
-	material->bind(shader);
-	shader->setUniform("u_model", model);
-
-	// Upload camera uniforms
-	shader->setUniform("u_viewprojection", cam.viewprojection_matrix);
-	shader->setUniform("u_camera_position", cam.eye);
-	
-	float t = getTime();
-	shader->setUniform("u_time", t);
-
-
-	mesh->render(GL_TRIANGLES);
-
-	shader->disable();
-
-	//set the render state as it was before to avoid problems with future renders
-	glDisable(GL_CULL_FACE);
-	glFrontFace(GL_CCW);
-
-	glDisable(GL_BLEND);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-}
 #ifndef SKIP_IMGUI
 
 void Renderer::showUI()
