@@ -170,8 +170,6 @@ uniform float u_shadow_bias;
 
 out vec4 FragColor;
 
-layout(location = 0) out vec4 gbuffer_albedo;
-layout(location = 1) out vec4 gbuffer_normal_mat;
 
 
 void main()
@@ -196,17 +194,6 @@ void main()
 	texture_normal = normalize(texture_normal);
 
 	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
-
-	
-	normal = normal * vec3(0.5);
-	normal = normal + vec3(0.5);
-	
-	gbuffer_normal_mat = vec4(normal,1.0);
-	gbuffer_albedo = color;
-
-	normal = normal - vec3(0.5);
-	normal = normal / vec3(0.5);
-	
 
 	vec3 light_component = vec3(0.0);
 
@@ -361,13 +348,13 @@ void main()
 	texture_normal = (texture_normal * 2.0) -1.0;
 	texture_normal = normalize(texture_normal);
 
-	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
+	vec3 normal =perturbNormal(v_normal, v_world_position, uv, texture_normal);
 
 	
 	normal = normal * vec3(0.5);
 	normal = normal + vec3(0.5);
 	
-	gbuffer_normal_mat = vec4(normal,1.0);
+	gbuffer_normal_mat = vec4(normal*0.5+0.5,1.0);
 	gbuffer_albedo = color;
 }
 

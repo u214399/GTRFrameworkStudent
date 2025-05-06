@@ -208,6 +208,7 @@ void Renderer::fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* m
 	shader->enable();
 
 	material->bind(shader);
+	glDisable(GL_BLEND);
 
 	//upload uniforms
 	shader->setUniform("u_model", model);
@@ -266,7 +267,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	material->bind(shader);
 	shader->setUniform("u_model", model);
 
-
+	texture_slots = 0;
 
 	vec3* light_pos = new vec3[light_list.size()];
 	vec3* light_color = new vec3[light_list.size()];
@@ -321,7 +322,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 
 	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
 	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
-	shader->setTexture("u_gbuffer_depth", fbo->depth_texture, texture_slots++);
+	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
 	
 	shader->setUniform("u_res_inv", vec2(1.0f / 1024, 1.0f / 1024));
 	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);

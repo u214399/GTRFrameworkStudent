@@ -26,7 +26,7 @@ GFX::Mesh sphere;
 
 Renderer::Renderer(const char* shader_atlas_filename)
 {
-	texture_slots = 2;
+	texture_slots = 0;
 	render_wireframe = false;
 	render_boundaries = false;
 	scene = nullptr;
@@ -46,7 +46,7 @@ Renderer::Renderer(const char* shader_atlas_filename)
 
 	
 	gbuffer_fbo = new GFX::FBO();
-	gbuffer_fbo->create(1024, 1024, texture_slots, GL_RGBA, GL_UNSIGNED_BYTE, true);
+	gbuffer_fbo->create(1024, 1024, 2, GL_RGBA, GL_UNSIGNED_BYTE, true);
 
 }
 
@@ -157,7 +157,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	light_cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[3]->near_distance, light_list[3]->max_distance);
 
 	for (sDrawCommand &render_call : entities_to_render) {
-		renderPlain(*camera, render_call.model, render_call.mesh, render_call.material);
+		renderPlain(light_cam, render_call.model, render_call.mesh, render_call.material);
 	}
 
 	glColorMask(true, true, true, true);
@@ -194,7 +194,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	
 	for(sDrawCommand draw : entities_to_render){
-		//renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
+	//	renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
 		renderDeferred(draw.model, draw.mesh, draw.material);
 	}
 
