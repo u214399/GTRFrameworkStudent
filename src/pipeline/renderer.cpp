@@ -48,9 +48,6 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	gbuffer_fbo = new GFX::FBO();
 	gbuffer_fbo->create(1024, 1024, texture_slots, GL_RGBA, GL_UNSIGNED_BYTE, true);
 
-	depth_texture = new GFX::Texture(1024, 1024);
-	gbuffer_fbo->setTexture(depth_texture);
-	gbuffer_fbo->setDepthOnly(1024, 1024);
 }
 
 void Renderer::setupScene()
@@ -160,7 +157,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	light_cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[3]->near_distance, light_list[3]->max_distance);
 
 	for (sDrawCommand &render_call : entities_to_render) {
-		renderPlain(light_cam, render_call.model, render_call.mesh, render_call.material);
+		renderPlain(*camera, render_call.model, render_call.mesh, render_call.material);
 	}
 
 	glColorMask(true, true, true, true);
@@ -172,14 +169,12 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	for (sDrawCommand& call : entities_to_render) {
-		renderMeshWithMaterial(call.model, call.mesh, call.material, false, light_cam);
+		fillGBuff(call.model, call.mesh, call.material);
+
 	}
 
+
 	gbuffer_fbo->unbind();
-
-
-
-
 
 
 	//set the clear color (the background color)
@@ -196,8 +191,6 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	// HERE =====================
 	// TODO: RENDER RENDERABLES
 	// ==========================
-	
-
 
 	
 	for(sDrawCommand draw : entities_to_render){
@@ -207,8 +200,8 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 
 	for (sDrawCommand draw : transparent_to_render) {
-		//renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
-		renderDeferred(draw.model, draw.mesh, draw.material);
+		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
+		//renderDeferred(draw.model, draw.mesh, draw.material);
 	}
 
 

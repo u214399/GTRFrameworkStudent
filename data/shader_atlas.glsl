@@ -6,6 +6,7 @@ depth quad.vs depth.fs
 multi basic.vs multi.fs
 compute test.cs
 plain basic.vs plain.fs
+fill basic.vs gbuffer_fill_fs
 quad quad.vs quad.fs
 
 \test.cs
@@ -168,10 +169,10 @@ uniform mat4 u_shadowvp;
 uniform float u_shadow_bias;
 
 out vec4 FragColor;
-/*
+
 layout(location = 0) out vec4 gbuffer_albedo;
 layout(location = 1) out vec4 gbuffer_normal_mat;
-*/
+
 
 void main()
 {
@@ -196,7 +197,7 @@ void main()
 
 	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
 
-	/*
+	
 	normal = normal * vec3(0.5);
 	normal = normal + vec3(0.5);
 	
@@ -205,7 +206,7 @@ void main()
 
 	normal = normal - vec3(0.5);
 	normal = normal / vec3(0.5);
-	*/
+	
 
 	vec3 light_component = vec3(0.0);
 
@@ -300,6 +301,77 @@ void main()
 	FragColor = color * vec4(light_component, 1.0);
 	
 }
+
+
+
+\gbuffer_fill_fs
+
+#version 330 core
+
+mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
+  // get edge vectors of the pixel triangle
+  vec3 dp1 = dFdx(p);
+  vec3 dp2 = dFdy(p);
+  vec2 duv1 = dFdx(uv);
+  vec2 duv2 = dFdy(uv);
+
+  // solve the linear system
+  vec3 dp2perp = cross(dp2, N);
+  vec3 dp1perp = cross(N, dp1);
+  vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+  vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+  // construct a scale-invariant frame 
+  float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
+  return mat3(T * invmax, B * invmax, N);
+}
+
+vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
+	normal_pixel = normal_pixel * 255./127. -128./127.;
+	mat3 TBN = cotangentFrame(N, WP, uv);
+	return normalize(TBN*normal_pixel);
+}
+
+in vec3 v_position;
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec4 v_color;
+
+uniform vec4 u_color;
+uniform sampler2D u_texture;
+uniform float u_time;
+uniform sampler2D u_normal_map;
+
+
+layout(location = 0) out vec4 gbuffer_albedo;
+layout(location = 1) out vec4 gbuffer_normal_mat;
+
+
+void main()
+{
+
+
+	vec2 uv = v_uv;
+	vec4 color = u_color;
+	color *= texture( u_texture, v_uv );
+
+	vec3 texture_normal = texture(u_normal_map, uv).xyz;
+
+	texture_normal = (texture_normal * 2.0) -1.0;
+	texture_normal = normalize(texture_normal);
+
+	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
+
+	
+	normal = normal * vec3(0.5);
+	normal = normal + vec3(0.5);
+	
+	gbuffer_normal_mat = vec4(normal,1.0);
+	gbuffer_albedo = color;
+}
+
+
 
 
 \quad.fs

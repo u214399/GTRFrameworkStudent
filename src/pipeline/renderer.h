@@ -77,6 +77,8 @@ namespace SCN {
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent);
 		void renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, bool transparent, Camera cam);
 
+
+		void fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 		void renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
 		void renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
