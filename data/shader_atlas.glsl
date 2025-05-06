@@ -329,7 +329,7 @@ uniform vec4 u_color;
 uniform sampler2D u_texture;
 uniform float u_time;
 uniform sampler2D u_normal_map;
-
+uniform float u_alpha_cutoff;
 
 layout(location = 0) out vec4 gbuffer_albedo;
 layout(location = 1) out vec4 gbuffer_normal_mat;
@@ -348,13 +348,15 @@ void main()
 	texture_normal = (texture_normal * 2.0) -1.0;
 	texture_normal = normalize(texture_normal);
 
-	vec3 normal =perturbNormal(v_normal, v_world_position, uv, texture_normal);
+	vec3 normal =perturbNormal(normalize(v_normal), v_world_position, uv, texture_normal);
 
 	
 	normal = normal * vec3(0.5);
 	normal = normal + vec3(0.5);
-	
-	gbuffer_normal_mat = vec4(normal*0.5+0.5,1.0);
+	normal=normalize(v_normal)*0.5+0.5;
+	gbuffer_normal_mat = vec4(normal,1.0);
+	if(color.a < u_alpha_cutoff)
+		discard;
 	gbuffer_albedo = color;
 }
 
@@ -430,6 +432,9 @@ void main()
 	float depth = texture(u_gbuffer_depth, uv).r;
 	float depth_clip = depth * 2.0 - 1.0;
 
+	if(depth >= 1)
+		discard;
+		
 	vec2 uv_clip = uv * 2.0 - 1.0;
 	vec4 clip_coords = vec4(uv_clip.x, uv_clip.y, depth_clip, 1.0);
 
@@ -444,7 +449,7 @@ void main()
 	
 
 	vec3 normal = texture(u_gbuffer_normal, uv).xyz;
-	
+	normal=(normal*2-vec3(1.0));
 	vec3 light_component = vec3(0.0);
 
 
