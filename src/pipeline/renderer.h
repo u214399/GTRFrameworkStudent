@@ -4,8 +4,9 @@
 
 #include "light.h"
 
+#include "camera.h"
 //forward declarations
-class Camera;
+//class Camera;
 class Skeleton;
 
 namespace GFX {
@@ -40,6 +41,7 @@ namespace SCN {
 	public:
 
 		bool single_pass = true;
+		bool forward = false;
 
 		bool render_wireframe;
 		bool render_boundaries;
@@ -51,7 +53,12 @@ namespace SCN {
 		GFX::Texture* depth_texture;
 		GFX::FBO* fbo;
 		GFX::FBO* gbuffer_fbo;
+		GFX::FBO* light_fbo;
 
+
+		std::vector<Camera> volume_camera;
+
+		static GFX::Mesh* light_sphere;
 		SCN::Scene* scene;
 
 		//updated every frame
@@ -80,6 +87,7 @@ namespace SCN {
 
 		void fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 		void renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+		void renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, std::vector<Camera> cam);
 
 		void renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 

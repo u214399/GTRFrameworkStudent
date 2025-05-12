@@ -8,6 +8,7 @@ compute test.cs
 plain basic.vs plain.fs
 fill basic.vs gbuffer_fill_fs
 quad quad.vs quad.fs
+light basic.vs light.fs
 
 \test.cs
 #version 430 core
@@ -367,31 +368,6 @@ void main()
 
 #version 330 core
 
-mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
-  // get edge vectors of the pixel triangle
-  vec3 dp1 = dFdx(p);
-  vec3 dp2 = dFdy(p);
-  vec2 duv1 = dFdx(uv);
-  vec2 duv2 = dFdy(uv);
-
-  // solve the linear system
-  vec3 dp2perp = cross(dp2, N);
-  vec3 dp1perp = cross(N, dp1);
-  vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
-  vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
-
-  // construct a scale-invariant frame 
-  float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
-  return mat3(T * invmax, B * invmax, N);
-}
-
-vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
-	normal_pixel = normal_pixel * 255./127. -128./127.;
-	mat3 TBN = cotangentFrame(N, WP, uv);
-	return normalize(TBN*normal_pixel);
-}
-
-
 in vec2 v_uv;
 
 uniform vec4 u_color;
@@ -459,7 +435,7 @@ void main()
 		vec3 L_unnorm = u_light_pos[i] - world_position;
 		float d = length(L_unnorm);
 
-
+		/*
 		if(u_type[i] == 1){
 			L = normalize(u_light_pos[i] - world_position);
 			intensity = u_light_intensity[i]/(d*d);
@@ -477,7 +453,7 @@ void main()
 			}
 		}
 
-		else if(u_type[i] == 3){
+		else*/ if(u_type[i] == 3){
 				L = normalize(u_light_dir[i]);
 				intensity = u_light_intensity[i];
 			}
@@ -500,6 +476,145 @@ void main()
 	
 }
 
+
+
+\light.fs
+
+#version 330 core
+
+mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
+  // get edge vectors of the pixel triangle
+  vec3 dp1 = dFdx(p);
+  vec3 dp2 = dFdy(p);
+  vec2 duv1 = dFdx(uv);
+  vec2 duv2 = dFdy(uv);
+
+  // solve the linear system
+  vec3 dp2perp = cross(dp2, N);
+  vec3 dp1perp = cross(N, dp1);
+  vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+  vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+
+  // construct a scale-invariant frame 
+  float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
+  return mat3(T * invmax, B * invmax, N);
+}
+
+vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
+	normal_pixel = normal_pixel * 255./127. -128./127.;
+	mat3 TBN = cotangentFrame(N, WP, uv);
+	return normalize(TBN*normal_pixel);
+}
+
+in vec3 v_position;
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec4 v_color;
+
+uniform vec4 u_color;
+uniform sampler2D u_texture;
+uniform float u_time;
+uniform float u_alpha_cutoff;
+
+uniform vec3 u_light_pos;
+uniform vec3 u_light_color;
+uniform vec3 u_light_dir;
+uniform float u_light_intensity;
+uniform int u_type;
+
+uniform float u_shine;
+uniform vec3 u_ambient_light;
+uniform float u_alpha_max;
+uniform float u_alpha_min;
+uniform sampler2D u_normal_map;
+uniform int location;
+
+
+uniform vec2 u_res_inv;
+uniform sampler2D u_gbuffer_color;
+uniform sampler2D u_gbuffer_normal;
+uniform sampler2D u_gbuffer_depth;
+uniform mat4 u_inv_vp_mat;
+
+
+
+out vec4 FragColor;
+
+void main()
+{
+	vec2 uv = gl_FragCoord.xy * u_res_inv;
+	
+	float depth = texture(u_gbuffer_depth, uv).r;
+	float depth_clip = depth * 2.0 - 1.0;
+
+	if(depth >= 1)
+		discard;
+		
+	vec2 uv_clip = uv * 2.0 - 1.0;
+	vec4 clip_coords = vec4(uv_clip.x, uv_clip.y, depth_clip, 1.0);
+
+	vec4 not_norm_world = u_inv_vp_mat * clip_coords;
+
+	vec3 world_position = not_norm_world.xyz / not_norm_world.w;
+	
+
+	 
+	vec3 v3_color = texture(u_gbuffer_color, uv).xyz;
+	vec4 color = vec4(v3_color, 1.0);
+	
+
+	vec3 normal = texture(u_gbuffer_normal, uv).xyz;
+	normal=(normal*2-vec3(1.0));
+	vec3 light_component = vec3(0.0);
+
+	vec3 L;
+	float intensity;
+	vec3 L_unnorm = u_light_pos - v_world_position;
+	float d = length(L_unnorm);
+
+
+	if(u_type == 1){
+		L = normalize(u_light_pos - v_world_position);
+		intensity = u_light_intensity/(d*d);
+	}
+
+	else if(u_type == 2){
+		vec3 D = normalize(u_light_dir);
+		intensity = u_light_intensity/(d*d);
+		L = normalize(u_light_pos - v_world_position);
+		if(dot(L,D)<cos(u_alpha_max)){
+			intensity = 0.0;
+		}
+		else {
+			intensity *= 1 - clamp((dot(L,D) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
+		}
+	}
+
+	else if(u_type == 3){
+			L = normalize(u_light_dir);
+			intensity = u_light_intensity;
+		}
+	
+	
+	vec3 R = reflect(L,normal);
+	float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
+	float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
+	
+	light_component += intensity*u_light_color*n_dot_v + u_light_color*pow(r_dot_v, u_shine)*intensity;
+
+
+	light_component +=u_ambient_light;
+
+
+	if(	color.a < 0.9 && 
+floor(mod(gl_FragCoord.x,2.0)) !=
+floor(mod(gl_FragCoord.y,2.0)) )
+		discard;
+
+	FragColor = color * vec4(light_component, 1.0);
+	
+}
 
 \skybox.fs
 

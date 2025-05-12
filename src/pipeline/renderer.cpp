@@ -2,7 +2,7 @@
 
 #include <algorithm> //sort
 
-#include "camera.h"
+//#include "camera.h"
 #include "../gfx/gfx.h"
 #include "../gfx/shader.h"
 #include "../gfx/mesh.h"
@@ -48,6 +48,11 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	gbuffer_fbo = new GFX::FBO();
 	gbuffer_fbo->create(1024, 1024, 2, GL_RGBA, GL_UNSIGNED_BYTE, true);
 
+	light_fbo = new GFX::FBO();
+	light_fbo->create(1024, 1024, 1, GL_RGBA, GL_UNSIGNED_BYTE, true);
+
+
+	volume_camera = std::vector<Camera>();
 }
 
 void Renderer::setupScene()
@@ -130,8 +135,6 @@ void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 {
 
-
-
 	this->scene = scene;
 	setupScene();
 
@@ -177,6 +180,38 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	gbuffer_fbo->unbind();
 
 
+	gbuffer_fbo->depth_texture->copyTo(light_fbo->depth_texture);
+
+	
+	
+	light_fbo->bind();
+
+
+	
+	glColorMask(false, false, false, false);
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glDrawBuffer(GL_NONE);
+	glViewport(0, 0, 1024, 1024);
+	for (int i = 0; i < light_list.size(); i++) {
+		//
+		Camera cam;
+		mat4 light_model = light_list[i]->root.getGlobalMatrix();
+		vec3 light_pos = light_model.getTranslation();
+
+		cam.lookAt(light_pos, light_model * vec3(0.f, 0.f, -1.f), vec3(0.0f, 1.0f, 0.0f));
+
+		float half_size = light_list[i]->area / 2.0f;
+
+		cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[i]->near_distance, light_list[i]->max_distance);
+		
+		volume_camera.push_back(cam);
+	}
+	glColorMask(true, true, true, true);
+
+
+	light_fbo->unbind();
+
 	//set the clear color (the background color)
 	glClearColor(scene->background_color.x, scene->background_color.y, scene->background_color.z, 1.0);
 
@@ -192,10 +227,14 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	// TODO: RENDER RENDERABLES
 	// ==========================
 
-	
+	//
 	for(sDrawCommand draw : entities_to_render){
-	//	renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
-		renderDeferred(draw.model, draw.mesh, draw.material);
+		if(forward)
+			renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
+		else
+			//renderDeferred(draw.model, draw.mesh, draw.material);
+			renderVolume(draw.model, draw.mesh, draw.material, volume_camera);
+
 	}
 
 
@@ -422,6 +461,8 @@ void Renderer::showUI()
 			transparent_to_render[i].material->shininess = shine;
 		}
 	}
+
+	ImGui::Checkbox("Forward Pipeline", &forward);
 	
 }
 

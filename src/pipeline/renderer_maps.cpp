@@ -324,7 +324,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
 	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
 	
-	shader->setUniform("u_res_inv", vec2(1.0f / 1024, 1.0f / 1024));
+	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
 	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
 
 
@@ -347,6 +347,122 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
+
+void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, std::vector<Camera> cam) {
+
+
+	GFX::Shader* shader = NULL;
+	shader = GFX::Shader::Get("light");
+	
+	assert(glGetError() == GL_NO_ERROR);
+
+	//no shader? then nothing to render
+	if (!shader)
+		return;
+
+	Camera* camera = Camera::current;
+
+	shader->enable();
+
+	LightEntity* light = light_list[3];
+
+	texture_slots = 0;
+
+	material->bind(shader);
+	shader->setUniform("u_model", model);
+
+	shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
+	shader->setUniform("u_light_color", light->color);
+	shader->setUniform("u_light_intensity", light->intensity);
+	shader->setUniform("u_light_dir", light->root.model.frontVector());
+
+	shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
+
+	shader->setUniform("u_type", 3);
+	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
+	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
+	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
+
+	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
+	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
+
+
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_camera_position", camera->eye);
+
+
+	// Upload time, for cool shader effects
+	float t = getTime();
+	shader->setUniform("u_time", t);
+
+	mesh->render(GL_TRIANGLES);
+
+
+
+
+	glDepthFunc(GL_GREATER);
+	glDepthMask(GL_FALSE);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glEnable(GL_BLEND);
+	glFrontFace(GL_CW);
+
+	for (int i = 0; i < light_list.size(); i++) {
+		LightEntity* light = light_list[i];
+
+		texture_slots = 0;
+
+		int type = light->light_type;
+		if (type != 3) {
+			// Upload the necessary uniforms.
+			GFX::Mesh sphere;
+			sphere.createSphere(light->max_distance);
+			sphere.radius = light->max_distance;
+
+
+			shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
+			shader->setUniform("u_light_color", light->color);
+			shader->setUniform("u_light_intensity", light->intensity);
+			shader->setUniform("u_light_dir", light->root.model.frontVector());
+			shader->setUniform("u_type", type);
+			if (type == 2) {
+				shader->setUniform("u_alpha_min", light->cone_info.x);
+				shader->setUniform("u_alpha_max", light->cone_info.y);
+			}
+			
+			shader->setUniform("u_ambient_light", vec3(0.f, 0.f, 0.f));
+
+
+			shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+			shader->setUniform("u_camera_position", camera->eye);
+
+
+			// Upload time, for cool shader effects
+			float t = getTime();
+			shader->setUniform("u_time", t);
+
+			// Create the model from the light data.
+			mat4 sphere_model;
+
+			vec3 position = light->root.getGlobalMatrix().getTranslation();
+			sphere_model.setTranslation(position.x, position.y, position.z);
+
+			shader->setUniform("u_model", sphere_model);
+
+			sphere.render(GL_TRIANGLES);
+
+		}
+
+	}
+
+	//// Return the OpenGL config to what it was
+	glDepthFunc(GL_LESS);
+	glDepthMask(GL_TRUE);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glDisable(GL_BLEND);
+	glFrontFace(GL_CCW);
+
+	shader->disable();
+}
 
 
 
