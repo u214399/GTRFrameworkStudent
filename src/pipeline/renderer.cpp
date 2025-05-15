@@ -139,6 +139,31 @@ void Renderer::parseSceneEntities(SCN::Scene* scene, Camera* cam) {
 	
 }
 
+std::vector<Vector3f>SCN::Renderer::generateSpherePoints(int num,
+	float radius, bool hemi) {
+	std::vector<Vector3f> points;
+	points.resize(num);
+	for (int i = 0; i < num; i += 1) {
+		Vector3f& p = points[i];
+		float u = random();
+		float v = random();
+		float theta = u * 2.0 * PI;
+		float phi = acos(2.0 * v - 1.0);
+		float r = cbrt(random() * 0.9 + 0.1) * radius;
+		float sinTheta = sin(theta);
+		float cosTheta = cos(theta);
+		float sinPhi = sin(phi);
+		float cosPhi = cos(phi);
+		p.x = r * sinPhi * cosTheta;
+		p.y = r * sinPhi * sinTheta;
+		p.z = r * cosPhi;
+		if (hemi && p.z < 0)
+			p.z *= -1.0;
+	}
+	return points;
+}
+
+
 void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 {
 
@@ -189,7 +214,45 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	gbuffer_fbo->depth_texture->copyTo(light_fbo->depth_texture);
 
-	
+	GFX::Mesh* quad = GFX::Mesh::getQuad();
+	GFX::Shader* ao_shader = GFX::Shader::Get("ambient_oclussion");
+	if (!ao_shader)
+		return;
+	ssao_FBO->bind();
+	ao_shader->enable();
+	int sample_count = 30;
+	float radius = 0.09f;
+	std::vector<Vector3f> ao_sample_points = generateSpherePoints(sample_count, radius, false);
+	ao_shader->setUniform("u_sample_count", sample_count);
+
+	ao_shader->setUniform("u_sample_radius", radius);
+
+	ao_shader->setUniform3Array("u_sample_pos",
+		(float*)&ao_sample_points[0],
+		sample_count);
+	mat4 proj = camera->projection_matrix;
+
+	// Compute the inverse
+	mat4 proj_inv = proj;
+	proj_inv.inverse();
+
+	ao_shader->setUniform("u_p_mat", proj);
+	ao_shader->setUniform("u_inv_p_mat", proj_inv);
+
+
+	// Send the inverse of the FBO res, for the UVs
+	float inv_width = 1.0f / ssao_FBO->color_textures[0]->width;
+	float inv_height = 1.0f / ssao_FBO->color_textures[0]->height;
+	vec2 res_inv = vec2(inv_width, inv_height);
+	ao_shader->setUniform("u_res_inv", res_inv);
+
+	ao_shader->setTexture("u_depth_tex", depth_texture, 7);
+
+	quad->render(GL_TRIANGLES);
+
+	ao_shader->disable();
+	ssao_FBO->unbind();
+
 	
 	light_fbo->bind();
 

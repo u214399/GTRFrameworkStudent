@@ -730,14 +730,20 @@ void main()
 
 \ambient.fs
 #version 330 core
-in int u_sample_count;
-in float u_sample_radius;
-in vec3 u_sample_pos[30];
-in mat4 u_p_mat;
-in mat4 u_inv_p_mat;
-in vec2 u_res_inv;
-in sampler2D u_depth_tex;
-main{
+uniform int u_sample_count;
+uniform float u_sample_radius;
+uniform vec3 u_sample_pos[30];
+uniform mat4 u_p_mat;
+uniform mat4 u_inv_p_mat;
+uniform vec2 u_res_inv;
+uniform sampler2D u_depth_tex;
+in vec3 v_position;
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec4 v_color;
+
+void main(){
 
 	vec2 uv = v_uv + 0.5 * u_res_inv;
 
