@@ -510,25 +510,57 @@ void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SC
 }
 
 
-std::vector<Vector3f> generateSpherePoints(int num, float radius, bool hemi) {
-	std::vector<Vector3f> points;
-	points.resize(num);
-	for (int i = 0; i < num; i += 1) {
-		Vector3f& p = points[i];
-		float u = random();
-		float v = random();
-		float theta = u * 2.0 * PI;
-		float phi = acos(2.0 * v - 1.0);
-		float r = cbrt(random() * 0.9 + 0.1) * radius;
-		float sinTheta = sin(theta);
-		float cosTheta = cos(theta);
-		float sinPhi = sin(phi);
-		float cosPhi = cos(phi);
-		p.x = r * sinPhi * cosTheta;
-		p.y = r * sinPhi * sinTheta;
-		p.z = r * cosPhi;
-		if (hemi && p.z < 0)
-			p.z *= -1.0;
-	}
-	return points;
+void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material) {
+
+	if (!mesh || !mesh->getNumVertices() || !material)
+		return;
+	assert(glGetError() == GL_NO_ERROR);
+
+	GFX::Mesh* quad = GFX::Mesh::getQuad();
+	GFX::Shader* ao_shader = GFX::Shader::Get("ambient_oclussion");
+	if (!ao_shader)
+		return;
+
+	Camera* camera = Camera::current;
+
+	ao_shader->enable();
+	std::vector<Vector3f> ao_sample_points = generateSpherePoints(samples, radius, false);
+	ao_shader->setUniform("u_sample_count", samples);
+
+	ao_shader->setUniform("u_sample_radius", radius);
+
+	ao_shader->setUniform3Array("u_sample_pos",
+		(float*)&ao_sample_points[0],
+		samples);
+	mat4 proj = camera->projection_matrix;
+
+	// Compute the inverse
+	mat4 proj_inv = proj;
+	proj_inv.inverse();
+
+	ao_shader->setUniform("u_p_mat", proj);
+	ao_shader->setUniform("u_inv_p_mat", proj_inv);
+
+
+	// Send the inverse of the FBO res, for the UVs
+	float inv_width = 1.0f / ssao_FBO->color_textures[0]->width;
+	float inv_height = 1.0f / ssao_FBO->color_textures[0]->height;
+	vec2 res_inv = vec2(inv_width, inv_height);
+	ao_shader->setUniform("u_res_inv", res_inv);
+
+	ao_shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, 0);
+
+
+	ao_shader->setUniform("u_model", model);
+
+	// Upload camera uniforms
+	ao_shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	ao_shader->setUniform("u_camera_position", camera->eye);
+
+	float t = getTime();
+	ao_shader->setUniform("u_time", t);
+
+	quad->render(GL_TRIANGLES);
+
+	ao_shader->disable();
 }

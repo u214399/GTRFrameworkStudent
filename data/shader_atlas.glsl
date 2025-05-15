@@ -436,7 +436,7 @@ void main()
 		vec3 L_unnorm = u_light_pos[i] - world_position;
 		float d = length(L_unnorm);
 
-		/*
+		
 		if(u_type[i] == 1){
 			L = normalize(u_light_pos[i] - world_position);
 			intensity = u_light_intensity[i]/(d*d);
@@ -454,7 +454,7 @@ void main()
 			}
 		}
 
-		else*/ if(u_type[i] == 3){
+		else if(u_type[i] == 3){
 				L = normalize(u_light_dir[i]);
 				intensity = u_light_intensity[i];
 			}
@@ -729,19 +729,27 @@ void main()
 
 
 \ambient.fs
+
 #version 330 core
+
+
+in vec3 v_position;
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec4 v_color;
+
+
 uniform int u_sample_count;
 uniform float u_sample_radius;
 uniform vec3 u_sample_pos[30];
 uniform mat4 u_p_mat;
 uniform mat4 u_inv_p_mat;
 uniform vec2 u_res_inv;
-uniform sampler2D u_depth_tex;
-in vec3 v_position;
-in vec3 v_world_position;
-in vec3 v_normal;
-in vec2 v_uv;
-in vec4 v_color;
+uniform sampler2D u_gbuffer_depth;
+
+
+out vec4 FragColor;
 
 void main(){
 
@@ -758,20 +766,24 @@ void main(){
 	vec4 clip_coords = vec4(uv, depth, 1.0);
 	clip_coords.xyz = clip_coords.xyz * 2.0 - 1.0;
 
-	vec4 view_sample_origin = u_inv_proj * clip_coords;
+	vec4 view_sample_origin = u_inv_p_mat * clip_coords;
 	view_sample_origin /= view_sample_origin.w;
+
 	float ao_term = 0.0;
+
 	for(int i = 0; i < u_sample_count; i++) {
 		vec3 view_sample = u_sample_pos[i];
 		view_sample *= u_sample_radius;
 		view_sample += view_sample_origin.xyz;
 
-		vec4 proj_sample = …;
+		vec4 proj_sample = vec4(view_sample, 1.0) * u_p_mat;
+  		proj_sample /= proj_sample.w;
 
 		vec2 sample_uv = proj_sample.xy * 0.5 + 0.5;
-		float sample_depth = texture(u_gbuffer_depth,
-							sample_uv).r;
-
+		float sample_depth = texture(u_gbuffer_depth, sample_uv).r;
+		if(sample_depth < proj_sample.z){
+			ao_term++;
+		}
 	}
 	ao_term /= u_sample_count;
 	FragColor = vec4(ao_term);

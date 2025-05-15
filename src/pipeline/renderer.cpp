@@ -213,47 +213,10 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 
 	gbuffer_fbo->depth_texture->copyTo(light_fbo->depth_texture);
-
-	GFX::Mesh* quad = GFX::Mesh::getQuad();
-	GFX::Shader* ao_shader = GFX::Shader::Get("ambient_oclussion");
-	if (!ao_shader)
-		return;
-	ssao_FBO->bind();
-	ao_shader->enable();
-	int sample_count = 30;
-	float radius = 0.09f;
-	std::vector<Vector3f> ao_sample_points = generateSpherePoints(sample_count, radius, false);
-	ao_shader->setUniform("u_sample_count", sample_count);
-
-	ao_shader->setUniform("u_sample_radius", radius);
-
-	ao_shader->setUniform3Array("u_sample_pos",
-		(float*)&ao_sample_points[0],
-		sample_count);
-	mat4 proj = camera->projection_matrix;
-
-	// Compute the inverse
-	mat4 proj_inv = proj;
-	proj_inv.inverse();
-
-	ao_shader->setUniform("u_p_mat", proj);
-	ao_shader->setUniform("u_inv_p_mat", proj_inv);
-
-
-	// Send the inverse of the FBO res, for the UVs
-	float inv_width = 1.0f / ssao_FBO->color_textures[0]->width;
-	float inv_height = 1.0f / ssao_FBO->color_textures[0]->height;
-	vec2 res_inv = vec2(inv_width, inv_height);
-	ao_shader->setUniform("u_res_inv", res_inv);
-
-	ao_shader->setTexture("u_depth_tex", depth_texture, 7);
-
-	quad->render(GL_TRIANGLES);
-
-	ao_shader->disable();
-	ssao_FBO->unbind();
-
 	
+
+
+
 	light_fbo->bind();
 
 
@@ -282,6 +245,16 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	light_fbo->unbind();
 
+
+	ssao_FBO->bind();
+
+	for (sDrawCommand draw : entities_to_render) {
+		renderSSAO(draw.model, draw.mesh, draw.material);
+	}
+
+	ssao_FBO->unbind();
+
+
 	//set the clear color (the background color)
 	glClearColor(scene->background_color.x, scene->background_color.y, scene->background_color.z, 1.0);
 
@@ -298,13 +271,15 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	// ==========================
 
 	//
-	for(sDrawCommand draw : entities_to_render){
-		if(forward)
-			renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false,light_cam);
-		else
-			//renderDeferred(draw.model, draw.mesh, draw.material);
-			renderVolume(draw.model, draw.mesh, draw.material, volume_camera);
-
+	for (sDrawCommand draw : entities_to_render) {
+		if (forward)
+			renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false, light_cam);
+		else {
+			if (volume_light)
+				renderVolume(draw.model, draw.mesh, draw.material, volume_camera);
+			else
+				renderDeferred(draw.model, draw.mesh, draw.material);
+		}
 	}
 
 
@@ -533,6 +508,7 @@ void Renderer::showUI()
 	}
 
 	ImGui::Checkbox("Forward Pipeline", &forward);
+	ImGui::Checkbox("Volume Lights", &volume_light);
 	ImGui::SliderInt("Samples", &samples, 1, 64);
 	ImGui::SliderFloat("Radius", &radius, 0.01, 0.1);
 }
