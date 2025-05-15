@@ -51,8 +51,15 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	light_fbo = new GFX::FBO();
 	light_fbo->create(1024, 1024, 1, GL_RGBA, GL_UNSIGNED_BYTE, true);
 
+	ssao_FBO = new GFX::FBO();
+	ssao_FBO->create(CORE::getWindowSize().x, CORE::getWindowSize().y, 1, GL_RGB, GL_UNSIGNED_BYTE, false);
+
+
 
 	volume_camera = std::vector<Camera>();
+
+	sphere.createSphere(10);
+
 }
 
 void Renderer::setupScene()
@@ -208,7 +215,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		volume_camera.push_back(cam);
 	}
 	glColorMask(true, true, true, true);
-
+	
 
 	light_fbo->unbind();
 
@@ -463,7 +470,8 @@ void Renderer::showUI()
 	}
 
 	ImGui::Checkbox("Forward Pipeline", &forward);
-	
+	ImGui::SliderInt("Samples", &samples, 1, 64);
+	ImGui::SliderFloat("Radius", &radius, 0.01, 0.1);
 }
 
 #else

@@ -5,6 +5,7 @@
 #include "light.h"
 
 #include "camera.h"
+#include "math.h"
 //forward declarations
 //class Camera;
 class Skeleton;
@@ -42,6 +43,8 @@ namespace SCN {
 
 		bool single_pass = true;
 		bool forward = false;
+		int samples = 5;
+		float radius = 0.05;
 
 		bool render_wireframe;
 		bool render_boundaries;
@@ -49,11 +52,15 @@ namespace SCN {
 		int texture_slots;
 		GFX::Texture* skybox_cubemap;
 
+
+		GFX::Mesh sphere;
+
 		GFX::Texture* texture;
 		GFX::Texture* depth_texture;
 		GFX::FBO* fbo;
 		GFX::FBO* gbuffer_fbo;
 		GFX::FBO* light_fbo;
+		GFX::FBO* ssao_FBO;
 
 
 		std::vector<Camera> volume_camera;
@@ -90,6 +97,8 @@ namespace SCN {
 		void renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, std::vector<Camera> cam);
 
 		void renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+
+		std::vector<Vector3f> generateSpherePoints(int num, float radius, bool hemi);
 
 		void showUI();
 	};

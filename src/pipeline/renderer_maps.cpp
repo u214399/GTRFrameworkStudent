@@ -368,6 +368,8 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 
 	texture_slots = 0;
 
+
+
 	material->bind(shader);
 	shader->setUniform("u_model", model);
 
@@ -375,10 +377,10 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 	shader->setUniform("u_light_color", light->color);
 	shader->setUniform("u_light_intensity", light->intensity);
 	shader->setUniform("u_light_dir", light->root.model.frontVector());
-
+													   
 	shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
-
-	shader->setUniform("u_type", 3);
+													   
+	shader->setUniform("u_type", 3);				   
 	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
 	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
 	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
@@ -397,9 +399,6 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 
 	mesh->render(GL_TRIANGLES);
 
-
-
-
 	glDepthFunc(GL_GREATER);
 	glDepthMask(GL_FALSE);
 	glBlendFunc(GL_ONE, GL_ONE);
@@ -414,10 +413,8 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 		int type = light->light_type;
 		if (type != 3) {
 			// Upload the necessary uniforms.
-			GFX::Mesh sphere;
-			sphere.createSphere(light->max_distance);
+			
 			sphere.radius = light->max_distance;
-
 
 			shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
 			shader->setUniform("u_light_color", light->color);
@@ -510,4 +507,28 @@ void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SC
 
 	glDisable(GL_BLEND);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
+
+std::vector<Vector3f> generateSpherePoints(int num, float radius, bool hemi) {
+	std::vector<Vector3f> points;
+	points.resize(num);
+	for (int i = 0; i < num; i += 1) {
+		Vector3f& p = points[i];
+		float u = random();
+		float v = random();
+		float theta = u * 2.0 * PI;
+		float phi = acos(2.0 * v - 1.0);
+		float r = cbrt(random() * 0.9 + 0.1) * radius;
+		float sinTheta = sin(theta);
+		float cosTheta = cos(theta);
+		float sinPhi = sin(phi);
+		float cosPhi = cos(phi);
+		p.x = r * sinPhi * cosTheta;
+		p.y = r * sinPhi * sinTheta;
+		p.z = r * cosPhi;
+		if (hemi && p.z < 0)
+			p.z *= -1.0;
+	}
+	return points;
 }
