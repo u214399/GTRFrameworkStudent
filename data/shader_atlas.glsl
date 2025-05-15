@@ -9,6 +9,7 @@ plain basic.vs plain.fs
 fill basic.vs gbuffer_fill_fs
 quad quad.vs quad.fs
 light basic.vs light.fs
+ambient_oclussion basic.vs ambient.fs
 
 \test.cs
 #version 430 core
@@ -723,4 +724,51 @@ void main()
 
 	//calcule the position of the vertex using the matrices
 	gl_Position = u_viewprojection * vec4( v_world_position, 1.0 );
+}
+
+
+
+\ambient.fs
+#version 330 core
+in int u_sample_count;
+in float u_sample_radius;
+in vec3 u_sample_pos[30];
+in mat4 u_p_mat;
+in mat4 u_inv_p_mat;
+in vec2 u_res_inv;
+in sampler2D u_depth_tex;
+main{
+
+	vec2 uv = v_uv + 0.5 * u_res_inv;
+
+	
+	float depth = texture(u_gbuffer_depth, uv).r;
+
+	if (depth >= 1.0) {
+		FragColor = vec4(1.0);
+		return;
+	}
+
+	vec4 clip_coords = vec4(uv, depth, 1.0);
+	clip_coords.xyz = clip_coords.xyz * 2.0 - 1.0;
+
+	vec4 view_sample_origin = u_inv_proj * clip_coords;
+	view_sample_origin /= view_sample_origin.w;
+	float ao_term = 0.0;
+	for(int i = 0; i < u_sample_count; i++) {
+		vec3 view_sample = u_sample_pos[i];
+		view_sample *= u_sample_radius;
+		view_sample += view_sample_origin.xyz;
+
+		vec4 proj_sample = …;
+
+		vec2 sample_uv = proj_sample.xy * 0.5 + 0.5;
+		float sample_depth = texture(u_gbuffer_depth,
+							sample_uv).r;
+
+	}
+	ao_term /= u_sample_count;
+	FragColor = vec4(ao_term);
+
+
 }
