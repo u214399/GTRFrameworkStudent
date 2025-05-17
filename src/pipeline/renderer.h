@@ -44,8 +44,10 @@ namespace SCN {
 		bool single_pass = true;
 		bool forward = false;
 		bool volume_light = false;
-		int samples = 5;
+		bool ssao = true;
+		int samples = 15;
 		float radius = 0.05;
+
 
 		bool render_wireframe;
 		bool render_boundaries;
@@ -63,6 +65,7 @@ namespace SCN {
 		GFX::FBO* light_fbo;
 		GFX::FBO* ssao_FBO;
 
+		std::vector<Vector3f> ao_sample_points;
 
 		std::vector<Camera> volume_camera;
 

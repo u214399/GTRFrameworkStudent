@@ -54,6 +54,7 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	ssao_FBO = new GFX::FBO();
 	ssao_FBO->create(CORE::getWindowSize().x, CORE::getWindowSize().y, 1, GL_RGB, GL_UNSIGNED_BYTE, false);
 
+	ao_sample_points = generateSpherePoints(samples, radius, false);
 
 
 	volume_camera = std::vector<Camera>();
@@ -213,9 +214,6 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 
 	gbuffer_fbo->depth_texture->copyTo(light_fbo->depth_texture);
-	
-
-
 
 	light_fbo->bind();
 
@@ -246,13 +244,16 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	light_fbo->unbind();
 
 
-	ssao_FBO->bind();
+	
+	if(ssao){
+		ssao_FBO->bind();
+		gbuffer_fbo->depth_texture->copyTo(ssao_FBO->depth_texture);
+		for (sDrawCommand draw : entities_to_render) {
+			renderSSAO(draw.model, draw.mesh, draw.material);
+		}
 
-	for (sDrawCommand draw : entities_to_render) {
-		renderSSAO(draw.model, draw.mesh, draw.material);
+		ssao_FBO->unbind();
 	}
-
-	ssao_FBO->unbind();
 
 
 	//set the clear color (the background color)
@@ -288,6 +289,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		//renderDeferred(draw.model, draw.mesh, draw.material);
 	}
 
+	ssao_FBO->color_textures[0]->toViewport();
 
 }
 
@@ -369,6 +371,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	float alpha_min;
 	float alpha_max;
 	float shadow_bias = 0.001f;
+
 	int i = 0u;
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
@@ -509,8 +512,9 @@ void Renderer::showUI()
 
 	ImGui::Checkbox("Forward Pipeline", &forward);
 	ImGui::Checkbox("Volume Lights", &volume_light);
-	ImGui::SliderInt("Samples", &samples, 1, 64);
-	ImGui::SliderFloat("Radius", &radius, 0.01, 0.1);
+	ImGui::Checkbox("SSAO", &ssao);
+	ImGui::SliderInt("Samples", &samples, 15, 30);
+	ImGui::SliderFloat("Radius", &radius, 0.01, 0.09);
 }
 
 #else

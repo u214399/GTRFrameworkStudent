@@ -269,6 +269,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 
 	texture_slots = 0;
 
+
 	vec3* light_pos = new vec3[light_list.size()];
 	vec3* light_color = new vec3[light_list.size()];
 	float* light_intensity = new float[light_list.size()];
@@ -277,6 +278,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	float alpha_min;
 	float alpha_max;
 	float shadow_bias = 0.001f;
+	
 	int i = 0u;
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
@@ -304,12 +306,6 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 
 	shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
 
-	//upload uniforms
-	shader->setUniform("u_model", model);
-
-	// Upload camera uniforms
-	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-	shader->setUniform("u_camera_position", camera->eye);
 
 	// Render just the verticies as a wireframe
 	if (render_wireframe)
@@ -406,7 +402,7 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 	glFrontFace(GL_CW);
 
 	for (int i = 0; i < light_list.size(); i++) {
-		LightEntity* light = light_list[i];
+		light = light_list[i];
 
 		texture_slots = 0;
 
@@ -524,7 +520,6 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 	Camera* camera = Camera::current;
 
 	ao_shader->enable();
-	std::vector<Vector3f> ao_sample_points = generateSpherePoints(samples, radius, false);
 	ao_shader->setUniform("u_sample_count", samples);
 
 	ao_shader->setUniform("u_sample_radius", radius);
@@ -548,8 +543,7 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 	vec2 res_inv = vec2(inv_width, inv_height);
 	ao_shader->setUniform("u_res_inv", res_inv);
 
-	ao_shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, 0);
-
+	ao_shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, 7);
 
 	ao_shader->setUniform("u_model", model);
 

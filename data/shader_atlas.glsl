@@ -9,7 +9,7 @@ plain basic.vs plain.fs
 fill basic.vs gbuffer_fill_fs
 quad quad.vs quad.fs
 light basic.vs light.fs
-ambient_oclussion basic.vs ambient.fs
+ambient_oclussion quad.vs ambient.fs
 
 \test.cs
 #version 430 core
@@ -399,8 +399,7 @@ uniform mat4 u_inv_vp_mat;
 
 
 out vec4 FragColor;
-layout(location = 0) out vec4 gbuffer_albedo;
-layout(location = 1) out vec4 gbuffer_normal_mat;
+
 
 void main()
 {
@@ -733,19 +732,17 @@ void main()
 #version 330 core
 
 
-in vec3 v_position;
-in vec3 v_world_position;
-in vec3 v_normal;
 in vec2 v_uv;
-in vec4 v_color;
 
 
 uniform int u_sample_count;
 uniform float u_sample_radius;
 uniform vec3 u_sample_pos[30];
+
 uniform mat4 u_p_mat;
 uniform mat4 u_inv_p_mat;
 uniform vec2 u_res_inv;
+
 uniform sampler2D u_gbuffer_depth;
 
 
@@ -776,13 +773,17 @@ void main(){
 		view_sample *= u_sample_radius;
 		view_sample += view_sample_origin.xyz;
 
-		vec4 proj_sample = vec4(view_sample, 1.0) * u_p_mat;
+		vec4 proj_sample = u_p_mat * vec4(view_sample, 1.0);
   		proj_sample /= proj_sample.w;
+
 
 		vec2 sample_uv = proj_sample.xy * 0.5 + 0.5;
 		float sample_depth = texture(u_gbuffer_depth, sample_uv).r;
-		if(sample_depth < proj_sample.z){
-			ao_term++;
+
+		proj_sample = proj_sample * 0.5 + 0.5;
+
+		if(sample_depth < proj_sample.z){	
+			ao_term+=1;
 		}
 	}
 	ao_term /= u_sample_count;
