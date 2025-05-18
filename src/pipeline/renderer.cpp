@@ -289,7 +289,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		//renderDeferred(draw.model, draw.mesh, draw.material);
 	}
 
-	ssao_FBO->color_textures[0]->toViewport();
+	// ssao_FBO->color_textures[0]->toViewport();
 
 }
 

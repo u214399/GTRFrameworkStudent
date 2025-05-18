@@ -1,4 +1,3 @@
-
 #include "material.h"
 
 #include "../core/includes.h"
@@ -80,34 +79,34 @@ void Material::bind(GFX::Shader* shader) {
 
 	// Bind the textures and set uniforms =======================
 	{
-		GFX::Texture* texture = textures[SCN::eTextureChannel::ALBEDO].texture;
+		// Bind albedo texture
+		GFX::Texture* albedo_texture = textures[SCN::eTextureChannel::ALBEDO].texture;
+		if (albedo_texture == NULL)
+			albedo_texture = GFX::Texture::getWhiteTexture(); //a 1x1 white texture
 
-		// HERE =====================
-		// TODO: Expand rfor the rest of materials (when you need to)
-		//	texture = emissive_texture;
-		//	texture = metallic_roughness_texture;
-		//	texture = normal_texture;
-		//	texture = occlusion_texture;
-		// ==========================
+		// Bind metallic-roughness texture
+		GFX::Texture* metallic_roughness_texture = textures[SCN::eTextureChannel::METALLIC_ROUGHNESS].texture;
 
-		// We always force a default albedo texture
-		if (texture == NULL)
-			texture = GFX::Texture::getWhiteTexture(); //a 1x1 white texture
-
-		shader->setUniform("u_color", color);
-
-		if (texture)
-			shader->setUniform("u_texture", texture, 0);
-
+		// Bind normal map
 		GFX::Texture* normal_texture = textures[SCN::eTextureChannel::NORMALMAP].texture;
 
+		// Set material uniforms
+		shader->setUniform("u_color", color);
+		shader->setUniform("u_roughness_factor", roughness_factor);
+		shader->setUniform("u_metallic_factor", metallic_factor);
+		shader->setUniform("u_emissive_factor", emissive_factor);
+
+		// Bind textures
+		if (albedo_texture)
+			shader->setUniform("u_albedo_map", albedo_texture, 0);
+
+		if (metallic_roughness_texture)
+			shader->setUniform("u_metallic_roughness_map", metallic_roughness_texture, 1);
+
 		if (normal_texture)
-			shader->setUniform("u_normal_map", normal_texture, 1);
-		// This is used to say which is the alpha threshold to what we should not paint a pixel on the screen (to cut polygons according to texture alpha)
+			shader->setUniform("u_normal_map", normal_texture, 2);
 
-		if (shininess)
-			shader->setUniform("u_shine", shininess);
-
+		// Set alpha cutoff for transparency
 		shader->setUniform("u_alpha_cutoff", alpha_mode == SCN::eAlphaMode::MASK ? alpha_cutoff : 0.001f);
 	}
 }
