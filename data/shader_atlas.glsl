@@ -109,6 +109,92 @@ void main()
 
 #version 330 core
 
+const float PI = 3.14159265359;
+const float EPSILON = 0.00001;
+
+// Calculate F0 (base reflectivity) based on material properties
+vec3 calculateF0(vec3 albedo, float metallic) {
+    return mix(vec3(0.04), albedo, metallic);
+}
+
+// Fresnel-Schlick approximation
+vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+// Normal Distribution Function (GGX/Trowbridge-Reitz)
+float distributionGGX(vec3 N, vec3 H, float roughness) {
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float nom = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return nom / (denom + EPSILON);
+}
+
+// Geometry function (Smith's method with Schlick-GGX)
+float geometrySchlickGGX(float NdotV, float roughness) {
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+
+    float nom = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return nom / (denom + EPSILON);
+}
+
+float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = geometrySchlickGGX(NdotV, roughness);
+    float ggx1 = geometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}
+
+// Cook-Torrance BRDF
+vec3 cookTorranceBRDF(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roughness) {
+    vec3 H = normalize(V + L);
+    
+    // Calculate F0
+    vec3 F0 = calculateF0(albedo, metallic);
+    
+    // Calculate dot products
+    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotH = max(dot(N, H), 0.0);
+    float HdotV = max(dot(H, V), 0.0);
+    
+    // Calculate BRDF terms
+    float D = distributionGGX(N, H, roughness);
+    vec3 F = fresnelSchlick(HdotV, F0);
+    float G = geometrySmith(N, V, L, roughness);
+    
+    // Calculate specular BRDF
+    vec3 numerator = D * F * G;
+    float denominator = 4.0 * NdotV * NdotL + EPSILON;
+    vec3 specular = numerator / denominator;
+    
+    // Calculate diffuse BRDF (Lambertian)
+    vec3 diffuse = albedo / PI;
+    
+    // Combine diffuse and specular based on metallic value
+    // Scale up the diffuse term for better visibility
+    return (diffuse * (1.0 - metallic) * 2.0 + specular) * NdotL;
+}
+
+// Calculate final lighting
+vec3 calculatePBRLighting(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float roughness, 
+                         vec3 lightColor, float lightIntensity, float attenuation) {
+    vec3 brdf = cookTorranceBRDF(N, V, L, albedo, metallic, roughness);
+    // Match the specification: Lo = (f_diffuse * (1.0 - metalness) + f_specular) * radiance * NdotL * attenuation * shadow
+    return brdf * lightColor * lightIntensity * attenuation;
+}
+
 mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
   // get edge vectors of the pixel triangle
   vec3 dp1 = dFdx(p);
@@ -140,8 +226,9 @@ in vec2 v_uv;
 in vec4 v_color;
 
 uniform vec4 u_color;
-uniform sampler2D u_texture;
-uniform float u_time;
+uniform sampler2D u_albedo_map;
+uniform sampler2D u_metallic_roughness_map;
+uniform sampler2D u_normal_map;
 uniform float u_alpha_cutoff;
 
 uniform vec3 u_light_pos[10];
@@ -150,145 +237,99 @@ uniform vec3 u_light_dir[10];
 uniform float u_light_intensity[10];
 uniform int u_type[10];
 
-
-uniform vec3 u_mlight_pos;
-uniform vec3 u_mlight_color;
-uniform vec3 u_mlight_dir;
-uniform float u_mlight_intensity;
-uniform int u_mtype;
-
-uniform float u_shine;
+uniform vec3 u_camera_pos;
 uniform vec3 u_ambient_light;
 uniform float u_alpha_max;
 uniform float u_alpha_min;
-uniform sampler2D u_normal_map;
-uniform int u_single_pass;
-uniform int location;
 
 uniform sampler2D u_shadowmap;
 uniform mat4 u_shadowvp;
-
 uniform float u_shadow_bias;
 
 out vec4 FragColor;
 
-
-
 void main()
 {
-
-	vec4 proj_pos =u_shadowvp*vec4(v_world_position,1.0);
-	float real_depth=(proj_pos.z-u_shadow_bias)/proj_pos.w;
-	proj_pos=proj_pos/proj_pos.w;
-	proj_pos=(proj_pos+1)/2;
-	real_depth=(real_depth+1)/2;
-	vec2 proj_coords = vec2(proj_pos.x,proj_pos.y);
-
-	vec2 uv = v_uv;
-	vec4 color = u_color;
-	color *= texture( u_texture, v_uv );
-
+	// Calculate view direction
+	vec3 V = normalize(u_camera_pos - v_world_position);
 	
-
-	vec3 texture_normal = texture(u_normal_map, uv).xyz;
-
-	texture_normal = (texture_normal * 2.0) -1.0;
+	// Sample textures
+	vec4 albedo = u_color * texture(u_albedo_map, v_uv);
+	vec4 metallic_roughness = texture(u_metallic_roughness_map, v_uv);
+	
+	// Get material properties
+	float roughness = metallic_roughness.g;
+	float metallic = metallic_roughness.b;
+	float ao = metallic_roughness.r;
+	
+	// Process normal map
+	vec3 texture_normal = texture(u_normal_map, v_uv).xyz;
+	texture_normal = (texture_normal * 2.0) - 1.0;
 	texture_normal = normalize(texture_normal);
-
-	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
-
-	vec3 light_component = vec3(0.0);
-
-
-	if(u_single_pass == 1){
-		for(int i = 0; i < 4; i++){
-			vec3 L;
-			float intensity;
-			vec3 L_unnorm = u_light_pos[i] - v_world_position;
-			float d = length(L_unnorm);
-
-
-			if(u_type[i] == 1){
-				L = normalize(u_light_pos[i] - v_world_position);
-				intensity = u_light_intensity[i]/(d*d);
-			}
-
-			else if(u_type[i] == 2){
-				vec3 D = normalize(u_light_dir[i]);
-				intensity = u_light_intensity[i]/(d*d);
-				L = normalize(u_light_pos[i] - v_world_position);
-				if(dot(L,D)<cos(u_alpha_max)){
-					intensity = 0.0;
-				}
-				else {
-					intensity *= 1 - clamp((dot(L,D) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
-				}
-			}
-
-			else if(u_type[i] == 3){
-				if(real_depth <= texture(u_shadowmap,proj_coords).r){
-					L = normalize(u_light_dir[i]);
-					intensity = u_light_intensity[i];
-				}
-			}
-			
-			vec3 R = reflect(L,normal);
-			float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
-			float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
-			
-			light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
-		}
-	}
-
-	else{
+	vec3 N = perturbNormal(normalize(v_normal), v_world_position, v_uv, texture_normal);
+	
+	// Initialize lighting
+	vec3 lighting = vec3(0.0);
+	
+	// Process each light
+	for(int i = 0; i < 4; i++) {
 		vec3 L;
-		float intensity;
-		vec3 L_unnorm = u_mlight_pos - v_world_position;
-		float d = length(L_unnorm);
-
-
-		if(u_mtype == 1){
-			L = normalize(u_mlight_pos - v_world_position);
-			intensity = u_mlight_intensity/(d*d);
+		float attenuation = 1.0;
+		
+		// Calculate light direction and attenuation based on light type
+		if(u_type[i] == 1) { // Point light
+			vec3 L_unnorm = u_light_pos[i] - v_world_position;
+			float distance = length(L_unnorm);
+			L = normalize(L_unnorm);
+			attenuation = 1.0 / (distance * distance);
 		}
-
-		else if(u_mtype == 2){
-			vec3 D = normalize(u_mlight_dir);
-			intensity = u_mlight_intensity/(d*d);
-			L = normalize(u_mlight_pos - v_world_position);
-			if(dot(L,D)<cos(u_alpha_max)){
-				intensity = 0.0;
+		else if(u_type[i] == 2) { // Spot light
+			vec3 L_unnorm = u_light_pos[i] - v_world_position;
+			float distance = length(L_unnorm);
+			L = normalize(L_unnorm);
+			attenuation = 1.0 / (distance * distance);
+			
+			float cos_angle = dot(L, normalize(u_light_dir[i]));
+			if(cos_angle < cos(u_alpha_max)) {
+				attenuation = 0.0;
 			}
 			else {
-				intensity *= 1 - clamp((dot(L,D) - cos(u_alpha_min))/(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
+				attenuation *= 1.0 - clamp((cos_angle - cos(u_alpha_min)) / 
+					(cos(u_alpha_max) - cos(u_alpha_min)), 0.0, 1.0);
 			}
 		}
-
-		else if(u_mtype == 3){
-			if(real_depth <= texture(u_shadowmap,proj_coords).r){
-				L = normalize(u_mlight_dir);
-				intensity = u_mlight_intensity;
+		else if(u_type[i] == 3) { // Directional light
+			L = normalize(u_light_dir[i]);
 			
+			// Shadow calculation
+			vec4 proj_pos = u_shadowvp * vec4(v_world_position, 1.0);
+			float real_depth = (proj_pos.z - u_shadow_bias) / proj_pos.w;
+			proj_pos = proj_pos / proj_pos.w;
+			proj_pos = (proj_pos + 1.0) / 2.0;
+			vec2 proj_coords = vec2(proj_pos.x, proj_pos.y);
+			
+			if(real_depth > texture(u_shadowmap, proj_coords).r) {
+				attenuation = 0.0;
 			}
 		}
 		
-		vec3 R = reflect(L,normal);
-		float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
-		float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
+		// Calculate PBR lighting
+		vec3 light_contribution = calculatePBRLighting(
+			N, V, L, albedo.rgb, metallic, roughness,
+			u_light_color[i], u_light_intensity[i], attenuation
+		);
 		
-		light_component += intensity*u_mlight_color*n_dot_v + u_mlight_color*pow(r_dot_v, u_shine)*intensity;
-
-
+		lighting += light_contribution;
 	}
-
-	light_component +=u_ambient_light;
-
-
-	if(color.a < u_alpha_cutoff)
-		discard;
-
-	FragColor = color * vec4(light_component, 1.0);
 	
+	// Add ambient light
+	lighting += u_ambient_light * albedo.rgb * ao;
+	
+	// Apply alpha cutoff
+	if(albedo.a < u_alpha_cutoff)
+		discard;
+	
+	FragColor = vec4(lighting, albedo.a);
 }
 
 
