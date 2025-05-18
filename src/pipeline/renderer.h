@@ -44,9 +44,11 @@ namespace SCN {
 		bool single_pass = true;
 		bool forward = false;
 		bool volume_light = false;
+		bool generate_points= true;
 		bool ssao = true;
 		int samples = 15;
 		float radius = 0.05;
+		float shadow_bias = 0.001f;
 
 
 		bool render_wireframe;
@@ -97,7 +99,7 @@ namespace SCN {
 
 
 		void fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
-		void renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
+		void renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera* cam);
 		void renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, std::vector<Camera> cam);
 		void renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 

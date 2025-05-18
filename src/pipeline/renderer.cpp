@@ -54,9 +54,6 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	ssao_FBO = new GFX::FBO();
 	ssao_FBO->create(CORE::getWindowSize().x, CORE::getWindowSize().y, 1, GL_RGB, GL_UNSIGNED_BYTE, false);
 
-	ao_sample_points = generateSpherePoints(samples, radius, false);
-
-
 	volume_camera = std::vector<Camera>();
 
 	sphere.createSphere(10);
@@ -279,7 +276,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 			if (volume_light)
 				renderVolume(draw.model, draw.mesh, draw.material, volume_camera);
 			else
-				renderDeferred(draw.model, draw.mesh, draw.material);
+				renderDeferred(draw.model, draw.mesh, draw.material, &light_cam);
 		}
 	}
 
@@ -289,7 +286,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		//renderDeferred(draw.model, draw.mesh, draw.material);
 	}
 
-	ssao_FBO->color_textures[0]->toViewport();
+	//ssao_FBO->color_textures[0]->toViewport();
 
 }
 
@@ -513,8 +510,10 @@ void Renderer::showUI()
 	ImGui::Checkbox("Forward Pipeline", &forward);
 	ImGui::Checkbox("Volume Lights", &volume_light);
 	ImGui::Checkbox("SSAO", &ssao);
+	ImGui::Checkbox("Regenerate Points", &generate_points);
 	ImGui::SliderInt("Samples", &samples, 15, 30);
 	ImGui::SliderFloat("Radius", &radius, 0.01, 0.09);
+
 }
 
 #else

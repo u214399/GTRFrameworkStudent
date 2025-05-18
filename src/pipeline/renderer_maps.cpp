@@ -63,7 +63,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	int* light_type = new int[light_list.size()];
 	float alpha_min;
 	float alpha_max;
-	float shadow_bias = 0.001f;
+	
 	int i = 0u;
 	for (LightEntity* light : light_list) {
 		light_pos[i] = light->root.getGlobalMatrix().getTranslation();
@@ -239,7 +239,7 @@ void Renderer::fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* m
 
 
 
-void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material) {
+void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera* cam) {
 	if (!mesh || !mesh->getNumVertices() || !material)
 		return;
 	assert(glGetError() == GL_NO_ERROR);
@@ -277,7 +277,6 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	int* light_type = new int[light_list.size()];
 	float alpha_min;
 	float alpha_max;
-	float shadow_bias = 0.001f;
 	
 	int i = 0u;
 	for (LightEntity* light : light_list) {
@@ -306,6 +305,9 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 
 	shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
 
+	shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
+	shader->setUniform("u_shadowvp", cam->viewprojection_matrix);
+	shader->setUniform("u_shadow_bias", shadow_bias);
 
 	// Render just the verticies as a wireframe
 	if (render_wireframe)
@@ -319,6 +321,13 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
 	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
 	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
+	if (ssao) {
+		shader->setTexture("u_ssao", ssao_FBO->color_textures[0], texture_slots++);
+		shader->setUniform("u_use_ssao", 1);
+	}
+	else
+		shader->setUniform("u_use_ssao", 0);
+
 	
 	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
 	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
@@ -380,6 +389,15 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
 	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
 	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
+	
+	if (ssao) {
+		shader->setTexture("u_ssao", ssao_FBO->color_textures[0], texture_slots++);
+		shader->setUniform("u_use_ssao", 1);
+	}
+	else
+		shader->setUniform("u_use_ssao", 0);
+
+
 
 	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
 	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
@@ -388,6 +406,10 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
 	shader->setUniform("u_camera_position", camera->eye);
 
+
+	shader->setUniform("u_shadowmap", fbo->depth_texture, 8);
+	shader->setUniform("u_shadowvp", cam[3].viewprojection_matrix);
+	shader->setUniform("u_shadow_bias", shadow_bias);
 
 	// Upload time, for cool shader effects
 	float t = getTime();
@@ -519,6 +541,12 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 
 	Camera* camera = Camera::current;
 
+
+	if (generate_points) {
+		ao_sample_points = generateSpherePoints(samples, radius, false);
+		generate_points = false;
+	}
+
 	ao_shader->enable();
 	ao_shader->setUniform("u_sample_count", samples);
 
@@ -527,6 +555,7 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 	ao_shader->setUniform3Array("u_sample_pos",
 		(float*)&ao_sample_points[0],
 		samples);
+
 	mat4 proj = camera->projection_matrix;
 
 	// Compute the inverse
@@ -545,14 +574,6 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 
 	ao_shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, 7);
 
-	ao_shader->setUniform("u_model", model);
-
-	// Upload camera uniforms
-	ao_shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-	ao_shader->setUniform("u_camera_position", camera->eye);
-
-	float t = getTime();
-	ao_shader->setUniform("u_time", t);
 
 	quad->render(GL_TRIANGLES);
 

@@ -396,7 +396,13 @@ uniform sampler2D u_gbuffer_normal;
 uniform sampler2D u_gbuffer_depth;
 uniform mat4 u_inv_vp_mat;
 
+uniform sampler2D u_shadowmap;
+uniform mat4 u_shadowvp;
 
+uniform float u_shadow_bias;
+
+uniform sampler2D u_ssao;
+uniform int u_use_ssao;
 
 out vec4 FragColor;
 
@@ -429,6 +435,13 @@ void main()
 	vec3 light_component = vec3(0.0);
 
 
+	vec4 proj_pos =u_shadowvp*vec4(world_position,1.0);
+	float real_depth=(proj_pos.z-u_shadow_bias)/proj_pos.w;
+	proj_pos=proj_pos/proj_pos.w;
+	proj_pos=(proj_pos+1)/2;
+	real_depth=(real_depth+1)/2;
+	vec2 proj_coords = vec2(proj_pos.x,proj_pos.y);
+
 	for(int i = 0; i < 4; i++){
 		vec3 L;
 		float intensity;
@@ -454,10 +467,11 @@ void main()
 		}
 
 		else if(u_type[i] == 3){
-				L = normalize(u_light_dir[i]);
-				intensity = u_light_intensity[i];
-			}
-		
+				if(real_depth <= texture(u_shadowmap,proj_coords).r){
+					L = normalize(u_light_dir[i]);
+					intensity = u_light_intensity[i];
+				}
+		}		
 		
 		vec3 R = reflect(L,normal);
 		float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
@@ -466,7 +480,15 @@ void main()
 		light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
 	}
 
-	light_component +=u_ambient_light;
+
+	if(u_use_ssao == 1){
+		float ssao_value = texture(u_ssao, uv).r;
+		light_component +=u_ambient_light * ssao_value;
+	}
+	else{
+		light_component +=u_ambient_light;
+
+	}
 
 
 	if(color.a < u_alpha_cutoff)
@@ -482,29 +504,6 @@ void main()
 
 #version 330 core
 
-mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
-  // get edge vectors of the pixel triangle
-  vec3 dp1 = dFdx(p);
-  vec3 dp2 = dFdy(p);
-  vec2 duv1 = dFdx(uv);
-  vec2 duv2 = dFdy(uv);
-
-  // solve the linear system
-  vec3 dp2perp = cross(dp2, N);
-  vec3 dp1perp = cross(N, dp1);
-  vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
-  vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
-
-  // construct a scale-invariant frame 
-  float invmax = inversesqrt(max(dot(T,T), dot(B,B)));
-  return mat3(T * invmax, B * invmax, N);
-}
-
-vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
-	normal_pixel = normal_pixel * 255./127. -128./127.;
-	mat3 TBN = cotangentFrame(N, WP, uv);
-	return normalize(TBN*normal_pixel);
-}
 
 in vec3 v_position;
 in vec3 v_world_position;
@@ -537,7 +536,13 @@ uniform sampler2D u_gbuffer_normal;
 uniform sampler2D u_gbuffer_depth;
 uniform mat4 u_inv_vp_mat;
 
+uniform sampler2D u_shadowmap;
+uniform mat4 u_shadowvp;
 
+uniform float u_shadow_bias;
+
+uniform sampler2D u_ssao;
+uniform int u_use_ssao;
 
 out vec4 FragColor;
 
@@ -568,6 +573,14 @@ void main()
 	normal=(normal*2-vec3(1.0));
 	vec3 light_component = vec3(0.0);
 
+
+	vec4 proj_pos =u_shadowvp*vec4(world_position,1.0);
+	float real_depth=(proj_pos.z-u_shadow_bias)/proj_pos.w;
+	proj_pos=proj_pos/proj_pos.w;
+	proj_pos=(proj_pos+1)/2;
+	real_depth=(real_depth+1)/2;
+	vec2 proj_coords = vec2(proj_pos.x,proj_pos.y);
+
 	vec3 L;
 	float intensity;
 	vec3 L_unnorm = u_light_pos - v_world_position;
@@ -592,9 +605,11 @@ void main()
 	}
 
 	else if(u_type == 3){
+		if(real_depth <= texture(u_shadowmap,proj_coords).r){
 			L = normalize(u_light_dir);
 			intensity = u_light_intensity;
 		}
+	}
 	
 	
 	vec3 R = reflect(L,normal);
@@ -603,8 +618,14 @@ void main()
 	
 	light_component += intensity*u_light_color*n_dot_v + u_light_color*pow(r_dot_v, u_shine)*intensity;
 
+	if(u_use_ssao == 1){
+		float ssao_value = texture(u_ssao, uv).r;
+		light_component +=u_ambient_light * ssao_value;
+	}
+	else{
+		light_component +=u_ambient_light;
 
-	light_component +=u_ambient_light;
+	}
 
 
 	if(	color.a < 0.9 && 
