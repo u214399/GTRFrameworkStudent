@@ -332,6 +332,11 @@ uniform sampler2D u_texture;
 uniform float u_time;
 uniform sampler2D u_normal_map;
 uniform float u_alpha_cutoff;
+uniform sampler2D u_metallic_roughness_map;
+
+uniform float u_roughness_factor;
+uniform float u_metallic_factor;
+uniform vec3 u_emissive_factor;
 
 layout(location = 0) out vec4 gbuffer_albedo;
 layout(location = 1) out vec4 gbuffer_normal_mat;
@@ -345,6 +350,11 @@ void main()
 	vec4 color = u_color;
 	color *= texture( u_texture, v_uv );
 
+	vec4 metallic_roughness = texture(u_metallic_roughness_map, uv);
+	float roughness = metallic_roughness.g * u_roughness_factor;
+	float metallic = metallic_roughness.b * u_metallic_factor;
+	float ao = metallic_roughness.r;
+
 	vec3 texture_normal = texture(u_normal_map, uv).xyz;
 
 	texture_normal = (texture_normal * 2.0) -1.0;
@@ -356,10 +366,10 @@ void main()
 	normal = normal * vec3(0.5);
 	normal = normal + vec3(0.5);
 	normal=normalize(v_normal)*0.5+0.5;
-	gbuffer_normal_mat = vec4(normal,1.0);
+	gbuffer_normal_mat = vec4(normal,metallic);
 	if(color.a < u_alpha_cutoff)
 		discard;
-	gbuffer_albedo = color;
+	gbuffer_albedo = vec4(color.rgb, roughness);
 }
 
 
