@@ -369,6 +369,18 @@ void main()
 
 #version 330 core
 
+
+vec3 degamma(vec3 c)
+{
+	return pow(c,vec3(2.2));
+}
+
+vec3 gamma(vec3 c)
+{
+	return pow(c,vec3(1.0/2.2));
+}
+
+
 in vec2 v_uv;
 
 uniform vec4 u_color;
@@ -426,7 +438,7 @@ void main()
 	
 
 	 
-	vec3 v3_color = texture(u_gbuffer_color, uv).xyz;
+	vec3 v3_color = degamma(texture(u_gbuffer_color, uv).xyz);
 	vec4 color = vec4(v3_color, 1.0);
 	
 
@@ -494,7 +506,8 @@ void main()
 	if(color.a < u_alpha_cutoff)
 		discard;
 
-	FragColor = color * vec4(light_component, 1.0);
+	vec3 final_color = gamma(color.rgb * light_component);
+	FragColor = vec4(final_color, 1.0);
 	
 }
 
@@ -503,6 +516,16 @@ void main()
 \light.fs
 
 #version 330 core
+
+vec3 degamma(vec3 c)
+{
+	return pow(c,vec3(2.2));
+}
+
+vec3 gamma(vec3 c)
+{
+	return pow(c,vec3(1.0/2.2));
+}
 
 
 in vec3 v_position;
@@ -565,7 +588,7 @@ void main()
 	
 
 	 
-	vec3 v3_color = texture(u_gbuffer_color, uv).xyz;
+	vec3 v3_color = degamma(texture(u_gbuffer_color, uv).xyz);
 	vec4 color = vec4(v3_color, 1.0);
 	
 
@@ -629,11 +652,12 @@ void main()
 
 
 	if(	color.a < 0.9 && 
-floor(mod(gl_FragCoord.x,2.0)) !=
-floor(mod(gl_FragCoord.y,2.0)) )
+		floor(mod(gl_FragCoord.x,2.0)) !=
+		floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
 
-	FragColor = color * vec4(light_component, 1.0);
+	vec3 final_color = gamma(color.rgb * light_component);
+	FragColor = vec4(final_color, 1.0);
 	
 }
 
