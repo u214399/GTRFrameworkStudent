@@ -126,30 +126,38 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0) {
 float distributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness * roughness;
     float a2 = a * a;
-    float NdotH = max(dot(N, H), 0.0);
+    float NdotH = max(dot(N, H), 0.00001);
     float NdotH2 = NdotH * NdotH;
 
     float nom = a2;
     float denom = (NdotH2 * (a2 - 1.0) + 1.0);
     denom = PI * denom * denom;
 
-    return nom / (denom + EPSILON);
+    return nom / (denom);
+    //return nom / (denom + EPSILON);
+
 }
 
 // Geometry function (Smith's method with Schlick-GGX)
 float geometrySchlickGGX(float NdotV, float roughness) {
-    float r = (roughness + 1.0);
-    float k = (r * r) / 8.0;
+    float r = (roughness);
+    float k = (r * r) / 2.0;
+
+    //float r = (roughness + 1.0);
+    //float k = (r * r) / 8.0;
+
 
     float nom = NdotV;
     float denom = NdotV * (1.0 - k) + k;
 
-    return nom / (denom + EPSILON);
+    return nom / (denom);
+    //return nom / (denom + EPSILON);
+
 }
 
 float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = max(dot(N, V), 0.00001);
+    float NdotL = max(dot(N, L), 0.00001);
     float ggx2 = geometrySchlickGGX(NdotV, roughness);
     float ggx1 = geometrySchlickGGX(NdotL, roughness);
 
@@ -164,10 +172,10 @@ vec3 cookTorranceBRDF(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float
     vec3 F0 = calculateF0(albedo, metallic);
     
     // Calculate dot products
-    float NdotL = max(dot(N, L), 0.0);
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotH = max(dot(N, H), 0.0);
-    float HdotV = max(dot(H, V), 0.0);
+    float NdotL = max(dot(N, L), 0.00001);
+    float NdotV = max(dot(N, V), 0.00001);
+    float NdotH = max(dot(N, H), 0.00001);
+    float HdotV = max(dot(H, V), 0.00001);
     
     // Calculate BRDF terms
     float D = distributionGGX(N, H, roughness);
@@ -175,8 +183,10 @@ vec3 cookTorranceBRDF(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float
     float G = geometrySmith(N, V, L, roughness);
     
     // Calculate specular BRDF
-    vec3 numerator = D * F * G;
-    float denominator = 4.0 * NdotV * NdotL + EPSILON;
+    vec3 numerator = F * D * G;
+    float denominator = 4.0 * NdotV * NdotL;
+    //float denominator = 4.0 * NdotV * NdotL + EPSILON;
+
     vec3 specular = numerator / denominator;
     
     // Calculate diffuse BRDF (Lambertian)
@@ -184,6 +194,7 @@ vec3 cookTorranceBRDF(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float
     
     // Combine diffuse and specular based on metallic value
     // Scale up the diffuse term for better visibility
+    //return diffuse + specular;
     return (diffuse * (1.0 - metallic) * 2.0 + specular) * NdotL;
 }
 
@@ -323,7 +334,7 @@ void main()
 	}
 	
 	// Add ambient light
-	lighting += u_ambient_light * albedo.rgb * ao;
+	lighting += u_ambient_light;
 	
 	// Apply alpha cutoff
 	if(albedo.a < u_alpha_cutoff)
@@ -408,7 +419,6 @@ void main()
 		discard;
 	gbuffer_albedo = vec4(color.rgb, roughness);
 }
-
 
 
 

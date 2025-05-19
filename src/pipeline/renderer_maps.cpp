@@ -80,7 +80,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	
 	
 	if (!single_pass) {
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
+		shader->setUniform("u_shadowmap", fbo->depth_texture, 4);
 		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 0);
 		glDepthFunc(GL_LEQUAL);
@@ -133,7 +133,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		
 	else {
 
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
+		shader->setUniform("u_shadowmap", fbo->depth_texture, 4);
 		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 1);
 		shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));

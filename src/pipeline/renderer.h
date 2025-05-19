@@ -44,7 +44,7 @@ namespace SCN {
 		bool single_pass = true;
 		bool forward = false;
 		bool volume_light = false;
-		bool ssao = true;
+		bool ssao = false;
 		int samples = 15;
 		float radius = 0.05;
 
