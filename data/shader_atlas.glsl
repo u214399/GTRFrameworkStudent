@@ -416,6 +416,8 @@ uniform float u_shadow_bias;
 uniform sampler2D u_ssao;
 uniform int u_use_ssao;
 
+uniform int u_gamma;
+
 out vec4 FragColor;
 
 
@@ -436,9 +438,12 @@ void main()
 
 	vec3 world_position = not_norm_world.xyz / not_norm_world.w;
 	
+	vec3 v3_color;
+	if(u_gamma == 1)
+		v3_color = degamma(texture(u_gbuffer_color, uv).xyz);
+	else
+		v3_color = texture(u_gbuffer_color, uv).xyz;
 
-	 
-	vec3 v3_color = degamma(texture(u_gbuffer_color, uv).xyz);
 	vec4 color = vec4(v3_color, 1.0);
 	
 
@@ -505,9 +510,12 @@ void main()
 
 	if(color.a < u_alpha_cutoff)
 		discard;
-
-	vec3 final_color = gamma(color.rgb * light_component);
-	FragColor = vec4(final_color, 1.0);
+	if(u_gamma == 1){
+		vec3 final_color = gamma(color.rgb * light_component);
+		FragColor = vec4(final_color, 1.0);
+	}
+	else
+		FragColor = color * vec4(light_component, 1.0);
 	
 }
 

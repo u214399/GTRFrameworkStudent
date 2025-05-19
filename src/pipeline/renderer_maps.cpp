@@ -302,6 +302,11 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->setUniform("u_alpha_min", alpha_min);
 	shader->setUniform("u_alpha_max", alpha_max);
 
+	if(gamma)
+		shader->setUniform("u_gamma", 1);
+	else
+		shader->setUniform("u_gamma", 0);
+
 
 	shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
 

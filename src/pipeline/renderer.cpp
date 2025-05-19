@@ -510,6 +510,8 @@ void Renderer::showUI()
 	ImGui::Checkbox("Forward Pipeline", &forward);
 	ImGui::Checkbox("Volume Lights", &volume_light);
 	ImGui::Checkbox("SSAO", &ssao);
+	ImGui::Checkbox("Apply Gamma correction", &gamma);
+
 	ImGui::Checkbox("Regenerate Points", &generate_points);
 	ImGui::SliderInt("Samples", &samples, 15, 30);
 	ImGui::SliderFloat("Radius", &radius, 0.01, 0.09);

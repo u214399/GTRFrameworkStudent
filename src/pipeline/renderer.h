@@ -46,6 +46,8 @@ namespace SCN {
 		bool volume_light = false;
 		bool generate_points= true;
 		bool ssao = true;
+		bool gamma = true;
+
 		int samples = 15;
 		float radius = 0.05;
 		float shadow_bias = 0.001f;
