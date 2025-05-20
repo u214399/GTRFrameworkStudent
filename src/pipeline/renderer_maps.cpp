@@ -583,7 +583,7 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 
 
 	if (generate_points) {
-		ao_sample_points = generateSpherePoints(samples, radius, false);
+		ao_sample_points = generateSpherePoints(samples, radius, true);
 		generate_points = false;
 	}
 

@@ -1195,7 +1195,7 @@ void main(){
 
 
 
-		if(sample_depth < proj_sample.z){	
+		if(sample_depth > proj_sample.z){	
 			ao_term+=1;
 		}
 	}
