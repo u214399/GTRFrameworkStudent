@@ -170,6 +170,16 @@ uniform mat4 u_shadowvp;
 
 uniform float u_shadow_bias;
 
+
+uniform float u_scale; //color scale before tonemapper
+// Average light intensity, this values goes from 0 to the
+// higher light value
+uniform float u_average_lum; 
+// The value that defines the higher color intensity of our frame
+// and so we set it as the white of our scene(but squared on the CPU)
+uniform float u_lumwhite2; 
+uniform float u_igamma; // inverse gamma (division done in the CPU)
+
 out vec4 FragColor;
 
 
@@ -283,9 +293,20 @@ void main()
 
 	light_component +=u_ambient_light;
 
+	vec3 rgb = color.xyz;
+
+	float lum = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+	float LL = (u_scale / u_average_lum) * lum;
+	float Ld = (LL * (1.0 + LL/ u_lumwhite2)) / (1.0 + LL);
+
+	rgb = (rgb / lum) * Ld;
+	rgb = max(rgb,vec3(0.001));
+	rgb = pow( rgb, vec3( u_igamma ) );
+	color = vec4( rgb, color.a );
 
 	if(color.a < u_alpha_cutoff)
 		discard;
+
 
 	FragColor = color * vec4(light_component, 1.0);
 	
@@ -854,3 +875,4 @@ void main(){
 
 
 }
+
