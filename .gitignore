@@ -70,3 +70,5 @@ visualstudio/VS2015/Release/visualstudio.log
 /visualstudio/VS2015/Release
 
 build/
+
+imgui.ini
