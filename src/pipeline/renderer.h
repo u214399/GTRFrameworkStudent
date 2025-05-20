@@ -44,6 +44,7 @@ namespace SCN {
 		bool single_pass = true;
 		bool forward = false;
 		bool volume_light = false;
+		bool pbr = true;
 		bool generate_points= true;
 		bool ssao = true;
 		bool gamma = true;

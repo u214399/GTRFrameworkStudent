@@ -110,7 +110,7 @@ void Material::bind(GFX::Shader* shader) {
 		GFX::Texture* metallic_roughness_texture = textures[SCN::eTextureChannel::METALLIC_ROUGHNESS].texture;
 
 		if (metallic_roughness_texture)
-			shader->setUniform("u_metallic_roughness_map", metallic_roughness_texture, 1);
+			shader->setUniform("u_metallic_roughness_map", metallic_roughness_texture, 2);
 
 		if (shininess)
 			shader->setUniform("u_shine", shininess);

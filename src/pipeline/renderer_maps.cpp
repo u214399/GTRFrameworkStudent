@@ -42,8 +42,13 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 	glEnable(GL_DEPTH_TEST);
 
 	//chose a shader
-	shader = GFX::Shader::Get("texture");
-
+	if(pbr && single_pass && !transparent)
+		shader = GFX::Shader::Get("pbr");
+	else {
+		shader = GFX::Shader::Get("texture");
+		if(!transparent)
+			pbr = false;
+	}
     assert(glGetError() == GL_NO_ERROR);
 
 	//no shader? then nothing to render
@@ -78,9 +83,36 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		i++;
 	}
 	
-	
-	if (!single_pass) {
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
+
+
+	/*GFX::Texture* hdr_texture = ssao ? ssao_FBO->color_textures[0] : light_fbo->color_textures[0];
+	int width = hdr_texture->width;
+	int height = hdr_texture->height;
+	std::vector<Color> pixels(width * height);
+
+	float total_luminance = 0.0f;
+	float max_luminance = 0.0f;
+
+	for (const Color& color : pixels) {
+		float lum = color.r * 0.2126f + color.g * 0.7152f + color.b * 0.0722f;
+		total_luminance += lum;
+		if (lum > max_luminance) {
+			max_luminance = lum;
+		}
+	}
+
+	float u_average_lum = total_luminance / (width * height);
+	float u_lumwhite2 = max_luminance * max_luminance;
+	float u_scale = 1.0f;
+	float u_igamma = 1.0f / 2.2f;
+	shader->setUniform("u_scale", u_scale);
+	shader->setUniform("u_average_lum", u_average_lum);
+	shader->setUniform("u_lumwhite2", u_lumwhite2);
+	shader->setUniform("u_igamma", u_igamma);
+	shader->setUniform("u_texture", hdr_texture, 0);
+	*/
+	if (!single_pass || transparent) {
+		shader->setUniform("u_shadowmap", fbo->depth_texture, 4);
 		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 0);
 		glDepthFunc(GL_LEQUAL);
@@ -133,7 +165,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		
 	else {
 
-		shader->setUniform("u_shadowmap", fbo->depth_texture, 2);
+		shader->setUniform("u_shadowmap", fbo->depth_texture, 4);
 		shader->setUniform("u_shadowvp", light_cam.viewprojection_matrix);
 		shader->setUniform("u_single_pass", 1);
 		shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
@@ -253,7 +285,10 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	Camera* camera = Camera::current;
 
 	//chose a shader
-	shader = GFX::Shader::Get("quad");
+	if(pbr)
+		shader = GFX::Shader::Get("quad_pbr");
+	else
+		shader = GFX::Shader::Get("quad");
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CW);
 

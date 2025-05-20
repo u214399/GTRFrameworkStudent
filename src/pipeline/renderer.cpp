@@ -270,11 +270,17 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	//
 	for (sDrawCommand draw : entities_to_render) {
-		if (forward)
+		if (forward) {
 			renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false, light_cam);
+			volume_light = false;
+			ssao = false;
+		}
 		else {
-			if (volume_light)
+			if (volume_light) {
 				renderVolume(draw.model, draw.mesh, draw.material, volume_camera);
+				forward = false;
+				pbr = false;
+			}
 			else
 				renderDeferred(draw.model, draw.mesh, draw.material, &light_cam);
 		}
@@ -283,11 +289,8 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	for (sDrawCommand draw : transparent_to_render) {
 		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
-		//renderDeferred(draw.model, draw.mesh, draw.material);
+
 	}
-
-
-
 
 	//ssao_FBO->color_textures[0]->toViewport();
 
@@ -386,7 +389,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 		i++;
 	}
 	
-	
+	single_pass = true;
 	if (!single_pass) {
 		shader->setUniform("u_single_pass", 0);
 		glDepthFunc(GL_LEQUAL);
@@ -426,31 +429,6 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 			float t = getTime();
 			shader->setUniform("u_time", t);
 
-			GFX::Texture* hdr_texture = ssao ? ssao_FBO->color_textures[0] : light_fbo->color_textures[0];
-			int width = hdr_texture->width;
-			int height = hdr_texture->height;
-			std::vector<Color> pixels(width * height);
-
-			float total_luminance = 0.0f;
-			float max_luminance = 0.0f;
-
-			for (const Color& color : pixels) {
-				float lum = color.r * 0.2126f + color.g * 0.7152f + color.b * 0.0722f;
-				total_luminance += lum;
-				if (lum > max_luminance) {
-					max_luminance = lum;
-				}
-			}
-
-			float u_average_lum = total_luminance / (width * height);
-			float u_lumwhite2 = max_luminance * max_luminance;
-			float u_scale = 1.0f;
-			float u_igamma = 1.0f / 2.2f;
-			shader->setUniform("u_scale", u_scale);
-			shader->setUniform("u_average_lum", u_average_lum);
-			shader->setUniform("u_lumwhite2", u_lumwhite2);
-			shader->setUniform("u_igamma", u_igamma);
-			shader->setUniform("u_texture", hdr_texture, 0);
 			// Render just the verticies as a wireframe
 			if (render_wireframe)
 				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -537,6 +515,7 @@ void Renderer::showUI()
 
 	ImGui::Checkbox("Forward Pipeline", &forward);
 	ImGui::Checkbox("Volume Lights", &volume_light);
+	ImGui::Checkbox("PBR", &pbr);
 	ImGui::Checkbox("SSAO", &ssao);
 	ImGui::Checkbox("Apply Gamma correction", &gamma);
 
