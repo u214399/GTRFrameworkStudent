@@ -215,28 +215,28 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	light_fbo->bind();
 
 
-	
-	glColorMask(false, false, false, false);
-	glClear(GL_DEPTH_BUFFER_BIT);
+	//
+	//glColorMask(false, false, false, false);
+	//glClear(GL_DEPTH_BUFFER_BIT);
 
-	glDrawBuffer(GL_NONE);
-	glViewport(0, 0, 1024, 1024);
-	for (int i = 0; i < light_list.size(); i++) {
-		//
-		Camera cam;
-		mat4 light_model = light_list[i]->root.getGlobalMatrix();
-		vec3 light_pos = light_model.getTranslation();
+	//glDrawBuffer(GL_NONE);
+	//glViewport(0, 0, 1024, 1024);
+	//for (int i = 0; i < light_list.size(); i++) {
+	//	//
+	//	Camera cam;
+	//	mat4 light_model = light_list[i]->root.getGlobalMatrix();
+	//	vec3 light_pos = light_model.getTranslation();
 
-		cam.lookAt(light_pos, light_model * vec3(0.f, 0.f, -1.f), vec3(0.0f, 1.0f, 0.0f));
+	//	cam.lookAt(light_pos, light_model * vec3(0.f, 0.f, -1.f), vec3(0.0f, 1.0f, 0.0f));
 
-		float half_size = light_list[i]->area / 2.0f;
+	//	float half_size = light_list[i]->area / 2.0f;
 
-		cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[i]->near_distance, light_list[i]->max_distance);
-		
-		volume_camera.push_back(cam);
-	}
-	glColorMask(true, true, true, true);
-	
+	//	cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[i]->near_distance, light_list[i]->max_distance);
+	//	
+	//	volume_camera.push_back(cam);
+	//}
+	//glColorMask(true, true, true, true);
+	//
 
 	light_fbo->unbind();
 
@@ -274,10 +274,11 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 			renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false, light_cam);
 			volume_light = false;
 			ssao = false;
+			ssao_plus = false;
 		}
 		else {
 			if (volume_light) {
-				renderVolume(draw.model, draw.mesh, draw.material, volume_camera);
+				renderVolume(draw.model, draw.mesh, draw.material, light_cam);
 				forward = false;
 				pbr = false;
 			}
@@ -285,7 +286,6 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 				renderDeferred(draw.model, draw.mesh, draw.material, &light_cam);
 		}
 	}
-
 
 	for (sDrawCommand draw : transparent_to_render) {
 		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);

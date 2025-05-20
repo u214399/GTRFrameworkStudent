@@ -393,7 +393,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 }
 
 
-void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, std::vector<Camera> cam) {
+void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera cam) {
 
 
 	GFX::Shader* shader = NULL;
@@ -448,7 +448,7 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 
 
 	shader->setUniform("u_shadowmap", fbo->depth_texture, 8);
-	shader->setUniform("u_shadowvp", cam[3].viewprojection_matrix);
+	shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
 	shader->setUniform("u_shadow_bias", shadow_bias);
 
 	// Upload time, for cool shader effects
