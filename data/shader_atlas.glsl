@@ -1200,7 +1200,7 @@ void main(){
 		}
 	}
 	ao_term /= float(u_sample_count);
-	FragColor = vec4(vec3(ao_term),1.0);
+	FragColor = vec4(vec3(ao_term+0.5),1.0);
 
 
 }
