@@ -604,7 +604,8 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 
 	ao_shader->setUniform("u_p_mat", proj);
 	ao_shader->setUniform("u_inv_p_mat", proj_inv);
-
+	ao_shader->setUniform("u_normal_text", gbuffer_fbo->color_textures[1], 1);
+	ao_shader->setUniform("u_view", camera->view_matrix);
 
 	// Send the inverse of the FBO res, for the UVs
 	float inv_width = 1.0f / ssao_FBO->color_textures[0]->width;

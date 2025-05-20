@@ -1143,6 +1143,8 @@ uniform vec3 u_sample_pos[30];
 uniform mat4 u_p_mat;
 uniform mat4 u_inv_p_mat;
 uniform vec2 u_res_inv;
+uniform sampler2D u_normal_text;
+uniform mat4 u_view;
 
 uniform sampler2D u_gbuffer_depth;
 
@@ -1167,10 +1169,19 @@ void main(){
 	vec4 view_sample_origin = u_inv_p_mat * clip_coords;
 	view_sample_origin /= view_sample_origin.w;
 
+	vec3 N=texture(u_normal_text,uv).rgb*2.0-1.0;
+	N = vec3(u_view * vec4(N, 0.0));
+	vec3 v= vec3(0.0, 1.0, 0.0);
+
+	vec3 T = normalize(v - N * dot(v, N));
+	vec3 B = cross(N, T);
+
+	mat3 rotmat = mat3(T, B, N);
+
 	float ao_term = 0.0;
 
 	for(int i = 0; i < u_sample_count; i++) {
-		vec3 view_sample = u_sample_pos[i];
+		vec3 view_sample = rotmat*u_sample_pos[i];
 		view_sample *= u_sample_radius;
 		view_sample += view_sample_origin.xyz;
 
@@ -1180,19 +1191,19 @@ void main(){
 
 		vec2 sample_uv = proj_sample.xy * 0.5 + 0.5;
 		float sample_depth = texture(u_gbuffer_depth, sample_uv).r;
+		sample_depth=sample_depth*2.0-1.0;
 
-		proj_sample = proj_sample * 0.5 + 0.5;
+
 
 		if(sample_depth < proj_sample.z){	
 			ao_term+=1;
 		}
 	}
-	ao_term /= u_sample_count;
-	FragColor = vec4(ao_term);
+	ao_term /= float(u_sample_count);
+	FragColor = vec4(vec3(ao_term),1.0);
 
 
 }
-
 \PBR_functions
 
 const float PI = 3.14159265359;
