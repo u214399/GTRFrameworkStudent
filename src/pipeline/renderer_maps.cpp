@@ -361,7 +361,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
 	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
 	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
-	if (ssao) {
+	if (ssao || ssao_plus) {
 		shader->setTexture("u_ssao", ssao_FBO->color_textures[0], texture_slots++);
 		shader->setUniform("u_use_ssao", 1);
 	}
@@ -430,7 +430,7 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
 	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
 	
-	if (ssao) {
+	if (ssao || ssao_plus) {
 		shader->setTexture("u_ssao", ssao_FBO->color_textures[0], texture_slots++);
 		shader->setUniform("u_use_ssao", 1);
 	}
@@ -583,7 +583,15 @@ void Renderer::renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* 
 
 
 	if (generate_points) {
-		ao_sample_points = generateSpherePoints(samples, radius, true);
+	
+		if (ssao_plus) {
+			ao_sample_points = generateSpherePoints(samples, radius, true);
+			ssao = false;
+		}
+		else if (ssao) {
+			ao_sample_points = generateSpherePoints(samples, radius, false);
+			ssao_plus = false;
+		}
 		generate_points = false;
 	}
 

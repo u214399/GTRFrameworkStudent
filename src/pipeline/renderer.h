@@ -47,6 +47,8 @@ namespace SCN {
 		bool pbr = true;
 		bool generate_points= true;
 		bool ssao = true;
+		bool ssao_plus = true;
+
 		bool gamma = true;
 
 		int samples = 15;

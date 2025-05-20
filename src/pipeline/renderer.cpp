@@ -242,7 +242,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 
 	
-	if(ssao){
+	if(ssao || ssao_plus){
 		ssao_FBO->bind();
 		gbuffer_fbo->depth_texture->copyTo(ssao_FBO->depth_texture);
 		for (sDrawCommand draw : entities_to_render) {
@@ -517,6 +517,8 @@ void Renderer::showUI()
 	ImGui::Checkbox("Volume Lights", &volume_light);
 	ImGui::Checkbox("PBR", &pbr);
 	ImGui::Checkbox("SSAO", &ssao);
+	ImGui::Checkbox("SSAO+", &ssao_plus);
+
 	ImGui::Checkbox("Apply Gamma correction", &gamma);
 
 	ImGui::Checkbox("Regenerate Points", &generate_points);

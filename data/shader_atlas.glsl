@@ -1182,7 +1182,7 @@ void main(){
 
 	for(int i = 0; i < u_sample_count; i++) {
 		vec3 view_sample = rotmat*u_sample_pos[i];
-		view_sample *= u_sample_radius;
+		//view_sample *= u_sample_radius;
 		view_sample += view_sample_origin.xyz;
 
 		vec4 proj_sample = u_p_mat * vec4(view_sample, 1.0);
