@@ -368,6 +368,10 @@ long CORE::getTime()
 {
 	return (long)SDL_GetTicks();
 }
+float CORE::getDelta()
+{
+	return 0; //convert milliseconds to seconds
+}
 
 //Retrieve the current path of the application
 #ifdef __APPLE__

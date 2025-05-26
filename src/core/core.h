@@ -54,6 +54,8 @@ namespace CORE {
 	void destroy();
 
 	long getTime();
+	float getDelta();
+
 	Vector2ui getWindowSize();
 	Vector2ui getDesktopSize(int display_index);
 	void setCursorPosition(int x, int y);

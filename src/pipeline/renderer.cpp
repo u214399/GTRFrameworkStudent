@@ -498,7 +498,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 
 void Renderer::showUI()
 {
-		
+
 	ImGui::Checkbox("Wireframe", &render_wireframe);
 	ImGui::Checkbox("Boundaries", &render_boundaries);
 
@@ -518,6 +518,9 @@ void Renderer::showUI()
 	ImGui::Checkbox("PBR", &pbr);
 	ImGui::Checkbox("SSAO", &ssao);
 	ImGui::Checkbox("SSAO+", &ssao_plus);
+	if (ImGui::Checkbox("Pulse", &pulse_active)) {
+		pulse_start_time = CORE::getTime();
+	}
 
 	ImGui::Checkbox("Apply Gamma correction", &gamma);
 

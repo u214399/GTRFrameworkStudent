@@ -372,7 +372,22 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
 	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
 
+	//Pulse Uniforms
+	if (pulse_active) {
+		float delta = CORE::getTime() - pulse_start_time;
+		float pulse_radius = delta * pulse_speed;
+		shader->setUniform("u_pulse_active", 1);
+		shader->setUniform("u_pulse_width", pulse_width);
+		shader->setUniform("u_pulse_color", pulse_color);
+		shader->setUniform("u_pulse_center", camera->eye);
+		shader->setUniform("u_pulse_radius", pulse_radius);
+		if (pulse_radius > 15) {
+			pulse_active = false;
+		}
 
+	}
+	else
+		shader->setUniform("u_pulse_active", 0);
 	quad->render(GL_TRIANGLES);
 
 	delete[] light_pos;
