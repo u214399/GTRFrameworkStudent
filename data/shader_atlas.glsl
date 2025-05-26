@@ -584,6 +584,7 @@ uniform float u_pulse_width;
 uniform vec3 u_pulse_center;
 uniform float u_pulse_radius;
 uniform int u_pulse_active;
+uniform float u_pulse_mixture;
 
 
 uniform vec4 u_color;
@@ -722,7 +723,7 @@ void main()
 		
 		float check = when_lt(dist, 0.0) * when_gt(dist, -u_pulse_width);
 		float percentage = abs(dist) / abs(u_pulse_width);
-		mix_ratio = 1.0 * check - percentage;
+		mix_ratio = u_pulse_mixture * check - percentage;
 		mix_ratio = clamp(mix_ratio, 0.0, 1.0);
 	}
 	
@@ -734,9 +735,11 @@ void main()
 		
 		else FragColor=vec4(final_color,1.0);
 	}
-	else
-		FragColor = color * vec4(light_component, 1.0);
-	
+	else{
+		vec4 final_color=color * vec4(light_component, 1.0);
+		if(u_pulse_active==1) FragColor=vec4(mix(final_color.rgb,u_pulse_color,mix_ratio),1.0);
+		else FragColor=final_color;
+	}
 }
 
 

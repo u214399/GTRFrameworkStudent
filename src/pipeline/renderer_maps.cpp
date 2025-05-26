@@ -376,12 +376,14 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	if (pulse_active) {
 		float delta = CORE::getTime() - pulse_start_time;
 		float pulse_radius = delta * pulse_speed;
+		float mixture = 1 - delta * pulse_bspeed/10;
 		shader->setUniform("u_pulse_active", 1);
 		shader->setUniform("u_pulse_width", pulse_width);
 		shader->setUniform("u_pulse_color", pulse_color);
 		shader->setUniform("u_pulse_center", camera->eye);
 		shader->setUniform("u_pulse_radius", pulse_radius);
-		if (pulse_radius > 20) {
+		shader->setUniform("u_pulse_mixture", mixture);
+		if (mixture < 0.0) {
 			pulse_active = false;
 		}
 
