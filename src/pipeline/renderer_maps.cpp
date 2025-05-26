@@ -381,7 +381,7 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 		shader->setUniform("u_pulse_color", pulse_color);
 		shader->setUniform("u_pulse_center", camera->eye);
 		shader->setUniform("u_pulse_radius", pulse_radius);
-		if (pulse_radius > 15) {
+		if (pulse_radius > 20) {
 			pulse_active = false;
 		}
 

@@ -65,7 +65,7 @@ namespace SCN {
 		bool pulse_active = true;
 		float pulse_width =0.3f;
 		Vector3f pulse_color = Vector3(0.0f, 0.0f, 1.0f);
-		float pulse_speed = 0.001f;
+		float pulse_speed = 0.005f;
 		float pulse_start_time = 0.0f;
 
 		GFX::Mesh sphere;
