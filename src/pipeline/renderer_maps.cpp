@@ -500,6 +500,7 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 
 			vec3 position = light->root.getGlobalMatrix().getTranslation();
 			sphere_model.setTranslation(position.x, position.y, position.z);
+			sphere_model.scale(sphere.radius, sphere.radius, sphere.radius);
 
 			shader->setUniform("u_model", sphere_model);
 

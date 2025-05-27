@@ -131,7 +131,7 @@ mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
 }
 
 vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
-	normal_pixel = normal_pixel * 255./127. -128./127.;
+	//normal_pixel = normal_pixel * 255./127. -128./127.;
 	mat3 TBN = cotangentFrame(N, WP, uv);
 	return normalize(TBN*normal_pixel);
 }
@@ -216,7 +216,7 @@ void main()
 	if(u_single_pass == 1){
 		for(int i = 0; i < 4; i++){
 			vec3 L;
-			float intensity;
+			float intensity =0.0;
 			vec3 L_unnorm = u_light_pos[i] - v_world_position;
 			float d = length(L_unnorm);
 
@@ -342,7 +342,6 @@ mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
 }
 
 vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
-	normal_pixel = normal_pixel * 255./127. -128./127.;
 	mat3 TBN = cotangentFrame(N, WP, uv);
 	return normalize(TBN*normal_pixel);
 }
@@ -365,7 +364,7 @@ uniform vec3 u_light_dir[10];
 uniform float u_light_intensity[10];
 uniform int u_type[10];
 
-uniform vec3 u_camera_pos;
+uniform vec3 u_camera_position;
 uniform vec3 u_ambient_light;
 uniform float u_alpha_max;
 uniform float u_alpha_min;
@@ -379,7 +378,7 @@ out vec4 FragColor;
 void main()
 {
 	// Calculate view direction
-	vec3 V = normalize(u_camera_pos - v_world_position);
+	vec3 V = normalize(u_camera_position - v_world_position);
 	
 	// Sample textures
 	vec4 albedo = u_color * texture(u_albedo_map, v_uv);
@@ -451,7 +450,7 @@ void main()
 	}
 	
 	// Add ambient light
-	lighting += u_ambient_light;
+	lighting += u_ambient_light * albedo.rgb;
 	
 	// Apply alpha cutoff
 	if(albedo.a < u_alpha_cutoff)
@@ -944,7 +943,7 @@ void main()
 	
 
 	 
-	vec3 v3_color = degamma(texture(u_gbuffer_color, uv).xyz);
+	vec3 v3_color = (texture(u_gbuffer_color, uv).xyz);
 	vec4 color = vec4(v3_color, 1.0);
 	
 
@@ -962,19 +961,19 @@ void main()
 
 	vec3 L;
 	float intensity;
-	vec3 L_unnorm = u_light_pos - v_world_position;
+	vec3 L_unnorm = u_light_pos - world_position;
 	float d = length(L_unnorm);
 
 
 	if(u_type == 1){
-		L = normalize(u_light_pos - v_world_position);
+		L = normalize(u_light_pos - world_position);
 		intensity = u_light_intensity/(d*d);
 	}
 
 	else if(u_type == 2){
 		vec3 D = normalize(u_light_dir);
 		intensity = u_light_intensity/(d*d);
-		L = normalize(u_light_pos - v_world_position);
+		L = normalize(u_light_pos - world_position);
 		if(dot(L,D)<cos(u_alpha_max)){
 			intensity = 0.0;
 		}
@@ -1012,7 +1011,7 @@ void main()
 		floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
 
-	vec3 final_color = gamma(color.rgb * light_component);
+	vec3 final_color = (color.rgb * light_component);
 	FragColor = vec4(final_color, 1.0);
 	
 }
@@ -1292,7 +1291,7 @@ vec3 cookTorranceBRDF(vec3 N, vec3 V, vec3 L, vec3 albedo, float metallic, float
     // Combine diffuse and specular based on metallic value
     // Scale up the diffuse term for better visibility
     //return diffuse + specular;
-    return (diffuse * (1.0 - metallic) * 2.0 + specular) * NdotL;
+    return (diffuse + specular) * NdotL;
 }
 
 // Calculate final lighting
