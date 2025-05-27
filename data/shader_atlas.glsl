@@ -8,6 +8,7 @@ compute test.cs
 plain basic.vs plain.fs
 fill basic.vs gbuffer_fill_fs
 quad quad.vs quad.fs
+light_first_pass quad.vs light.fs
 light basic.vs light.fs
 pbr basic.vs pbr.fs
 quad_pbr quad.vs quad_pbr.fs
@@ -131,7 +132,7 @@ mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
 }
 
 vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
-	normal_pixel = normal_pixel * 255./127. -128./127.;
+	//normal_pixel = normal_pixel * 255./127. -128./127.;
 	mat3 TBN = cotangentFrame(N, WP, uv);
 	return normalize(TBN*normal_pixel);
 }
@@ -208,7 +209,7 @@ void main()
 	texture_normal = (texture_normal * 2.0) -1.0;
 	texture_normal = normalize(texture_normal);
 
-	vec3 normal = perturbNormal(v_normal, v_world_position, uv, texture_normal);
+	vec3 normal = perturbNormal(normalize(v_normal), v_world_position, uv, texture_normal);
 
 	vec3 light_component = vec3(0.0);
 

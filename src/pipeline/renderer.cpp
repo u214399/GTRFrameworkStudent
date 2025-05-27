@@ -238,6 +238,14 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	//}
 	//glColorMask(true, true, true, true);
 	//
+	for (sDrawCommand draw : entities_to_render) {
+		renderVolumeFirstPass(draw.material, light_cam);
+	}
+	//
+	//for (auto light : light_list) {
+	//	renderVolume(draw.material);
+	//}
+
 
 	light_fbo->unbind();
 

@@ -271,9 +271,8 @@ void Renderer::fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* m
 
 
 
-void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera* cam) {
-	if (!mesh || !mesh->getNumVertices() || !material)
-		return;
+void Renderer::renderDeferred(SCN::Material* material, Camera* cam) {
+
 	assert(glGetError() == GL_NO_ERROR);
 
 	//define locals to simplify coding
@@ -300,7 +299,6 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->enable();
 
 	material->bind(shader);
-	shader->setUniform("u_model", model);
 
 	texture_slots = 0;
 
@@ -353,9 +351,6 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	if (render_wireframe)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	//do the draw call that renders the mesh into the screen
-	float t = getTime();
-	shader->setUniform("u_time", t);
 
 
 	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
@@ -372,7 +367,24 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
 	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
 
+	//Pulse Uniforms
+	if (pulse_active) {
+		float delta = CORE::getTime() - pulse_start_time;
+		float pulse_radius = delta * pulse_speed;
+		float mixture = 1 - delta * pulse_bspeed/10;
+		shader->setUniform("u_pulse_active", 1);
+		shader->setUniform("u_pulse_width", pulse_width);
+		shader->setUniform("u_pulse_color", pulse_color);
+		shader->setUniform("u_pulse_center", camera->eye);
+		shader->setUniform("u_pulse_radius", pulse_radius);
+		shader->setUniform("u_pulse_mixture", mixture);
+		if (mixture < 0.0) {
+			pulse_active = false;
+		}
 
+	}
+	else
+		shader->setUniform("u_pulse_active", 0);
 	quad->render(GL_TRIANGLES);
 
 	delete[] light_pos;
@@ -393,6 +405,77 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 }
 
 
+void Renderer::renderVolumeFirstPass(SCN::Material* material, Camera cam) {
+
+
+	GFX::Shader* shader = NULL;
+	shader = GFX::Shader::Get("light_first_pass");
+
+	assert(glGetError() == GL_NO_ERROR);
+
+	//no shader? then nothing to render
+	if (!shader)
+		return;
+
+	Camera* camera = Camera::current;
+
+	GFX::Mesh* quad = GFX::Mesh::getQuad();
+
+	shader->enable();
+
+	LightEntity* light = light_list[3];
+
+	texture_slots = 0;
+
+	material->bind(shader);
+
+	shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
+	shader->setUniform("u_light_color", light->color);
+	shader->setUniform("u_light_intensity", light->intensity);
+	shader->setUniform("u_light_dir", light->root.model.frontVector());
+
+	shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
+
+	shader->setUniform("u_type", 3);
+	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
+	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
+	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
+
+	if (gamma)
+		shader->setUniform("u_gamma", 1);
+	else
+		shader->setUniform("u_gamma", 0);
+
+
+	if (ssao || ssao_plus) {
+		shader->setTexture("u_ssao", ssao_FBO->color_textures[0], texture_slots++);
+		shader->setUniform("u_use_ssao", 1);
+	}
+	else
+		shader->setUniform("u_use_ssao", 0);
+
+	shader->setUniform("u_use_pulse", 0);
+
+
+	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
+	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
+
+
+	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+	shader->setUniform("u_camera_position", camera->eye);
+
+
+	shader->setUniform("u_shadowmap", fbo->depth_texture, 8);
+	shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
+	shader->setUniform("u_shadow_bias", shadow_bias);
+
+
+	quad->render(GL_TRIANGLES);
+
+	shader->disable();
+
+}
+
 void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera cam) {
 
 
@@ -410,52 +493,6 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 	shader->enable();
 
 	LightEntity* light = light_list[3];
-
-	texture_slots = 0;
-
-
-
-	material->bind(shader);
-	shader->setUniform("u_model", model);
-
-	shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
-	shader->setUniform("u_light_color", light->color);
-	shader->setUniform("u_light_intensity", light->intensity);
-	shader->setUniform("u_light_dir", light->root.model.frontVector());
-													   
-	shader->setUniform("u_ambient_light", Scene::instance->ambient_light);
-													   
-	shader->setUniform("u_type", 3);				   
-	shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
-	shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
-	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
-	
-	if (ssao || ssao_plus) {
-		shader->setTexture("u_ssao", ssao_FBO->color_textures[0], texture_slots++);
-		shader->setUniform("u_use_ssao", 1);
-	}
-	else
-		shader->setUniform("u_use_ssao", 0);
-
-
-
-	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
-	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
-
-
-	shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-	shader->setUniform("u_camera_position", camera->eye);
-
-
-	shader->setUniform("u_shadowmap", fbo->depth_texture, 8);
-	shader->setUniform("u_shadowvp", cam.viewprojection_matrix);
-	shader->setUniform("u_shadow_bias", shadow_bias);
-
-	// Upload time, for cool shader effects
-	float t = getTime();
-	shader->setUniform("u_time", t);
-
-	mesh->render(GL_TRIANGLES);
 
 	glDepthFunc(GL_GREATER);
 	glDepthMask(GL_FALSE);
