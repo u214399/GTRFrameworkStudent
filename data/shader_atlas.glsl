@@ -131,7 +131,7 @@ mat3 cotangentFrame(vec3 N, vec3 p, vec2 uv) {
 }
 
 vec3 perturbNormal(vec3 N, vec3 WP, vec2 uv, vec3 normal_pixel){
-	//normal_pixel = normal_pixel * 255./127. -128./127.;
+	normal_pixel = normal_pixel * 255./127. -128./127.;
 	mat3 TBN = cotangentFrame(N, WP, uv);
 	return normalize(TBN*normal_pixel);
 }
@@ -548,6 +548,21 @@ void main()
 
 #version 330 core
 
+//Return <0 if point is inside the Sphere
+//=0 if is in the border
+//> if is outside the Sphere
+//We asume point p is centered on sphere center
+float sdSphere( vec3 p, float s ) {
+	return length(p)-s;
+}
+
+// Replacements for < and > because math on GPU is fast. They return 1 or 0
+float when_lt(float left_side, float right_side) {
+	return max(sign(right_side - left_side), 0.0);
+}
+float when_gt(float left_side, float right_side) {
+	return max(sign(left_side - right_side), 0.0);
+}
 
 vec3 degamma(vec3 c)
 {
@@ -561,6 +576,15 @@ vec3 gamma(vec3 c)
 
 
 in vec2 v_uv;
+
+//Pulse uniforms
+uniform vec3 u_pulse_color;
+uniform float u_pulse_width;
+uniform vec3 u_pulse_center;
+uniform float u_pulse_radius;
+uniform int u_pulse_active;
+uniform float u_pulse_mixture;
+
 
 uniform vec4 u_color;
 uniform sampler2D u_texture;
@@ -688,13 +712,33 @@ void main()
 
 	if(color.a < u_alpha_cutoff)
 		discard;
+
+
+	float mix_ratio = 0.0;
+	
+	if(u_pulse_active==1){
+		vec3 adjusted_position = world_position-u_pulse_center;
+		float dist = sdSphere(adjusted_position, u_pulse_radius);
+		
+		float check = when_lt(dist, 0.0) * when_gt(dist, -u_pulse_width);
+		float percentage = abs(dist) / abs(u_pulse_width);
+		mix_ratio = u_pulse_mixture * check - percentage;
+		mix_ratio = clamp(mix_ratio, 0.0, 1.0);
+	}
+	
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
-		FragColor = vec4(final_color, 1.0);
+		
+		if(u_pulse_active==1)
+			FragColor=vec4(mix(final_color,u_pulse_color,mix_ratio),1.0);
+		
+		else FragColor=vec4(final_color,1.0);
 	}
-	else
-		FragColor = color * vec4(light_component, 1.0);
-	
+	else{
+		vec4 final_color=color * vec4(light_component, 1.0);
+		if(u_pulse_active==1) FragColor=vec4(mix(final_color.rgb,u_pulse_color,mix_ratio),1.0);
+		else FragColor=final_color;
+	}
 }
 
 

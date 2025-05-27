@@ -44,10 +44,10 @@ namespace SCN {
 		bool single_pass = true;
 		bool forward = false;
 		bool volume_light = false;
-		bool pbr = true;
+		bool pbr = false;
 		bool generate_points= true;
-		bool ssao = true;
-		bool ssao_plus = true;
+		bool ssao = false;
+		bool ssao_plus = false;
 
 		bool gamma = true;
 
@@ -62,6 +62,12 @@ namespace SCN {
 		int texture_slots;
 		GFX::Texture* skybox_cubemap;
 
+		bool pulse_active = true;
+		float pulse_width =0.3f;
+		Vector3f pulse_color = Vector3(0.0f, 0.0f, 1.0f);
+		float pulse_speed = 0.005f;
+		float pulse_bspeed = 0.0005f;
+		float pulse_start_time = 0.0f;
 
 		GFX::Mesh sphere;
 
@@ -104,7 +110,9 @@ namespace SCN {
 
 
 		void fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
-		void renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera* cam);
+		void renderDeferred(SCN::Material* material, Camera* cam);
+
+		void renderVolumeFirstPass(SCN::Material* material, Camera cam);
 		void renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera cam);
 		void renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 

@@ -54,6 +54,7 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	ssao_FBO = new GFX::FBO();
 	ssao_FBO->create(CORE::getWindowSize().x, CORE::getWindowSize().y, 1, GL_RGB, GL_UNSIGNED_BYTE, false);
 
+
 	volume_camera = std::vector<Camera>();
 
 	sphere.createSphere(10);
@@ -278,12 +279,12 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		}
 		else {
 			if (volume_light) {
-				renderVolume(draw.model, draw.mesh, draw.material, light_cam);
+				renderVolumeFirstPass(draw.material, light_cam);
 				forward = false;
 				pbr = false;
 			}
 			else
-				renderDeferred(draw.model, draw.mesh, draw.material, &light_cam);
+				renderDeferred(draw.material, &light_cam);
 		}
 	}
 
@@ -498,7 +499,7 @@ void Renderer::renderMeshWithMaterial(const Matrix44 model, GFX::Mesh* mesh, SCN
 
 void Renderer::showUI()
 {
-		
+
 	ImGui::Checkbox("Wireframe", &render_wireframe);
 	ImGui::Checkbox("Boundaries", &render_boundaries);
 
@@ -518,15 +519,22 @@ void Renderer::showUI()
 	ImGui::Checkbox("PBR", &pbr);
 	ImGui::Checkbox("SSAO", &ssao);
 	ImGui::Checkbox("SSAO+", &ssao_plus);
+	if (ImGui::Checkbox("Pulse", &pulse_active)) {
+		pulse_start_time = CORE::getTime();
+	}
 
+	ImGui::ColorEdit3("Pulse color", pulse_color.v);
+	ImGui::SliderFloat("Pulse width", &pulse_width, 0.0f, 1.0f);
+	ImGui::SliderFloat("Pulse diffusion Speed", &pulse_bspeed, 0.0f, 0.01f);
+	ImGui::SliderFloat("Pulse Speed", &pulse_speed, 0.0f, 0.01f);
 	ImGui::Checkbox("Apply Gamma correction", &gamma);
-
 	ImGui::Checkbox("Regenerate Points", &generate_points);
 	ImGui::SliderInt("Samples", &samples, 15, 30);
 	ImGui::SliderFloat("Radius", &radius, 0.01, 0.09);
-
+	
 }
-
 #else
 void Renderer::showUI() {}
 #endif
+
+
