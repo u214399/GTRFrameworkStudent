@@ -373,23 +373,39 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 	shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
 
 	//Pulse Uniforms
-	if (pulse_active) {
-		float delta = CORE::getTime() - pulse_start_time;
-		float pulse_radius = delta * pulse_speed;
-		float mixture = 1 - delta * pulse_bspeed/10;
-		shader->setUniform("u_pulse_active", 1);
-		shader->setUniform("u_pulse_width", pulse_width);
-		shader->setUniform("u_pulse_color", pulse_color);
-		shader->setUniform("u_pulse_center", camera->eye);
-		shader->setUniform("u_pulse_radius", pulse_radius);
-		shader->setUniform("u_pulse_mixture", mixture);
-		if (mixture < 0.0) {
-			pulse_active = false;
+	
+		float delta[5];
+		float pulse_radius[5];
+		float mixture[5];
+		int u_pulse_active[5];
+		
+		for (int i = 0; i < 5; i++) {
+			if (pulse_active[i]) {
+				delta[i] = CORE::getTime() - pulse_start_time[i];
+				pulse_radius[i] = delta[i] * pulse_speed[i];
+				mixture[i] = 1 - delta[i] * pulse_bspeed[i] / 10;
+				u_pulse_active[i] = 1;
+				
+			}
+			else {
+				u_pulse_active[i] = 0;
+				printf("%d %d\n",i,u_pulse_active[i]);
+			}
 		}
 
-	}
-	else
-		shader->setUniform("u_pulse_active", 0);
+		
+		shader->setUniform1Array("u_pulse_active", u_pulse_active,5);
+		shader->setUniform1Array("u_pulse_width", pulse_width,5);
+		shader->setUniform3Array("u_pulse_color", (float*)pulse_color,5);
+		shader->setUniform3Array("u_pulse_center", (float*)pulse_center,5);
+		shader->setUniform1Array("u_pulse_radius", pulse_radius,5);
+		shader->setUniform1Array("u_pulse_mixture", mixture,5);
+		for (int i = 0; i < 5; i++) {
+			if (mixture[i] < 0)
+				pulse_active[i] = false;
+		}
+
+	
 	quad->render(GL_TRIANGLES);
 
 	delete[] light_pos;
