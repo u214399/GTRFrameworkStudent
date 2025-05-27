@@ -389,7 +389,6 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 			}
 			else {
 				u_pulse_active[i] = 0;
-				printf("%d %d\n",i,u_pulse_active[i]);
 			}
 		}
 
@@ -401,8 +400,10 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 		shader->setUniform1Array("u_pulse_radius", pulse_radius,5);
 		shader->setUniform1Array("u_pulse_mixture", mixture,5);
 		for (int i = 0; i < 5; i++) {
-			if (mixture[i] < 0)
+			if (mixture[i] < 0 || pulse_radius[i]>10) {
 				pulse_active[i] = false;
+				max_pulse = false;
+			}
 		}
 
 	

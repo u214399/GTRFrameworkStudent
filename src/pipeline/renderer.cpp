@@ -528,7 +528,7 @@ void Renderer::showUI()
 	ImGui::Checkbox("PBR", &pbr);
 	ImGui::Checkbox("SSAO", &ssao);
 	ImGui::Checkbox("SSAO+", &ssao_plus);
-	if (ImGui::Checkbox("Active Pulse", &useless)) {
+	if (ImGui::Checkbox("Active Pulse", &max_pulse)) {
 		int i = 0;
 		
 		while (i<5 && pulse_active[i])
@@ -543,14 +543,14 @@ void Renderer::showUI()
 			pulse_width[i] = actualwidth;
 			pulse_speed[i] = actualspeed;
 			pulse_bspeed[i] = actualbspeed;
-			useless = false;
+			max_pulse = false;
 		}
-		
+		else max_pulse = true;
 		
 	}
 
 	ImGui::ColorEdit3("Pulse color", actualcolor.v);
-	ImGui::SliderFloat("Pulse width", &actualwidth, 0.0f, 1.0f);
+	ImGui::SliderFloat("Pulse width", &actualwidth, 0.0f, 4.0f);
 	ImGui::SliderFloat("Pulse diffusion Speed", &actualbspeed, 0.0f, 0.01f);
 	ImGui::SliderFloat("Pulse Speed", &actualspeed, 0.0f, 0.01f);
 	ImGui::Checkbox("Apply Gamma correction", &gamma);

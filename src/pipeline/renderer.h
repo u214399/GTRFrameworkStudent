@@ -65,9 +65,9 @@ namespace SCN {
 
 
 		float actualwidth = 1.0f;
-		Vector3f actualcolor = Vector3f(1.0f, 1.0f, 1.0f);
+		Vector3f actualcolor = Vector3f(0.0f, 0.0f, 1.0f);
 		float actualspeed = 0.001f;
-		float actualbspeed = 0.0f;
+		float actualbspeed = 0.001f;
 		float actualstart_time = 0.0f;
 		//pulse effect
 		bool pulse_active[5];
@@ -87,7 +87,7 @@ namespace SCN {
 		GFX::FBO* gbuffer_fbo;
 		GFX::FBO* light_fbo;
 		GFX::FBO* ssao_FBO;
-		bool useless=false;
+		bool max_pulse=false;
 		std::vector<Vector3f> ao_sample_points;
 
 		std::vector<Camera> volume_camera;

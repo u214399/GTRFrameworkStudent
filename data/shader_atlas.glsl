@@ -713,8 +713,7 @@ void main()
 
 	if(color.a < u_alpha_cutoff)
 		discard;
-
-
+	float max_mix=0.0;
 	float mix_ratio = 0.0;
 	vec3 pulse_color=vec3(0.0);
 	for(int i=0;i<5;i++){
@@ -726,24 +725,28 @@ void main()
 			float percentage = abs(dist) / abs(u_pulse_width[i]);
 			mix_ratio = u_pulse_mixture[i] * check - percentage;
 			mix_ratio = clamp(mix_ratio, 0.0, 1.0);
-			if(mix_ratio>0){
-				pulse_color+=u_pulse_color[i];
+			if(mix_ratio>max_mix){
+				pulse_color=u_pulse_color[i];
+				max_mix=mix_ratio;
+				
 			}
 		}
+		
 	}
 
 
 	
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
+
 		
-		
-		FragColor=vec4(mix(final_color,pulse_color,mix_ratio),1.0);
+		FragColor=vec4(mix(final_color,pulse_color,max_mix),1.0);
+
 			
 	}
 	else{
 		vec4 final_color=color * vec4(light_component, 1.0);
-		FragColor=vec4(mix(final_color.rgb,pulse_color,mix_ratio),1.0);
+		FragColor=vec4(mix(final_color.rgb,pulse_color,max_mix),1.0);
 		
 	}
 }
