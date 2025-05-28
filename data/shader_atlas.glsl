@@ -585,6 +585,7 @@ uniform vec3 u_pulse_center[5];
 uniform float u_pulse_radius[5];
 uniform int u_pulse_active[5];
 uniform float u_pulse_mixture[5];
+uniform int u_pulse_border_width[5];
 
 
 uniform vec4 u_color;
@@ -630,7 +631,8 @@ void main()
 	
 	float depth = texture(u_gbuffer_depth, uv).r;
 	float depth_clip = depth * 2.0 - 1.0;
-
+	
+	
 	if(depth >= 1)
 		discard;
 		
@@ -716,6 +718,10 @@ void main()
 	float max_mix=0.0;
 	float mix_ratio = 0.0;
 	vec3 pulse_color=vec3(0.0);
+	float min_radius=100.0;
+	vec3 bordercol=vec3(0.0);
+	int borderwidth=0;
+
 	for(int i=0;i<5;i++){
 		if(u_pulse_active[i]==1){
 			vec3 adjusted_position = world_position-u_pulse_center[i];
@@ -730,17 +736,56 @@ void main()
 				max_mix=mix_ratio;
 				
 			}
+			if(dist<0){
+				if(u_pulse_radius[i]<min_radius){
+					min_radius=u_pulse_radius[i];
+					bordercol=u_pulse_color[i];
+					borderwidth=u_pulse_border_width[i];
+				}
+			}
 		}
 		
 	}
 
+	float neigh_depth[8];
+	vec2 new_coords;
+	vec2 uv_1;
 
+	vec2 offsets[8] = vec2[](
+    vec2(-borderwidth, -borderwidth),
+    vec2( 0.0, -borderwidth),
+    vec2( borderwidth, -borderwidth),
+    vec2(-borderwidth,  0.0),
+    vec2( borderwidth,  0.0),
+    vec2(-borderwidth,  borderwidth),
+    vec2( 0.0,  borderwidth),
+    vec2( borderwidth,  borderwidth)
+);
 	
+	for(int i=0;i<8;i++){
+		new_coords=gl_FragCoord.xy+offsets[i];
+		uv_1 = new_coords * u_res_inv;
+    	neigh_depth[i] = texture(u_gbuffer_depth, uv_1).r;
+	}
+	float depth_dif=0.0;
+	for(int i=0;i<8;i++){
+		depth_dif+=neigh_depth[i];
+	}
+	
+	if(depth_dif/8.0>depth+0.0001){
+		depth_dif=1;
+	}
+	else depth_dif=0;
+
+	if(bordercol==vec3(0.0)) depth_dif=0;
+	
+
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
 
 		
-		FragColor=vec4(mix(final_color,pulse_color,max_mix),1.0);
+		FragColor=vec4(mix(mix(final_color,bordercol,depth_dif),pulse_color,max_mix),1.0);
+
 
 			
 	}

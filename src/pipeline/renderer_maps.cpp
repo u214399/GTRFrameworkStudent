@@ -392,13 +392,13 @@ void Renderer::renderDeferred(const Matrix44 model, GFX::Mesh* mesh, SCN::Materi
 			}
 		}
 
-		
 		shader->setUniform1Array("u_pulse_active", u_pulse_active,5);
 		shader->setUniform1Array("u_pulse_width", pulse_width,5);
 		shader->setUniform3Array("u_pulse_color", (float*)pulse_color,5);
 		shader->setUniform3Array("u_pulse_center", (float*)pulse_center,5);
 		shader->setUniform1Array("u_pulse_radius", pulse_radius,5);
 		shader->setUniform1Array("u_pulse_mixture", mixture,5);
+		shader->setUniform1Array("u_pulse_border_width", pulse_border_width, 5);
 		for (int i = 0; i < 5; i++) {
 			if (mixture[i] < 0 || pulse_radius[i]>10) {
 				pulse_active[i] = false;

@@ -69,6 +69,7 @@ namespace SCN {
 		float actualspeed = 0.001f;
 		float actualbspeed = 0.001f;
 		float actualstart_time = 0.0f;
+		int actual_borderwidth = 1;
 		//pulse effect
 		bool pulse_active[5];
 
@@ -78,6 +79,7 @@ namespace SCN {
 		float pulse_bspeed[5];
 		float pulse_start_time[5];
 		Vector3f pulse_center[5];
+		int pulse_border_width[5];
 
 		GFX::Mesh sphere;
 
