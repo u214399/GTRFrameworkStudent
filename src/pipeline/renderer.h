@@ -112,8 +112,8 @@ namespace SCN {
 		void fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 		void renderDeferred(SCN::Material* material, Camera* cam);
 
-		void renderVolumeFirstPass(SCN::Material* material, Camera cam);
-		void renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera cam);
+		void renderVolumeFirstPass(Camera cam);
+		void renderVolume(Camera cam, LightEntity* light);
 		void renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
 

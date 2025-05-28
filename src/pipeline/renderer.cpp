@@ -46,10 +46,10 @@ Renderer::Renderer(const char* shader_atlas_filename)
 
 	
 	gbuffer_fbo = new GFX::FBO();
-	gbuffer_fbo->create(1024, 1024, 2, GL_RGBA, GL_UNSIGNED_BYTE, true);
+	gbuffer_fbo->create(CORE::getWindowSize().x, CORE::getWindowSize().y, 2, GL_RGBA, GL_UNSIGNED_BYTE, true);
 
 	light_fbo = new GFX::FBO();
-	light_fbo->create(1024, 1024, 1, GL_RGBA, GL_UNSIGNED_BYTE, true);
+	light_fbo->create(CORE::getWindowSize().x, CORE::getWindowSize().y, 1, GL_RGBA, GL_UNSIGNED_BYTE, true);
 
 	ssao_FBO = new GFX::FBO();
 	ssao_FBO->create(CORE::getWindowSize().x, CORE::getWindowSize().y, 1, GL_RGB, GL_UNSIGNED_BYTE, false);
@@ -238,17 +238,20 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	//}
 	//glColorMask(true, true, true, true);
 	//
-	for (sDrawCommand draw : entities_to_render) {
-		renderVolumeFirstPass(draw.material, light_cam);
-	}
-	//
-	//for (auto light : light_list) {
-	//	renderVolume(draw.material);
-	//}
+
+	glClear(GL_COLOR_BUFFER_BIT);
+
+
+	if (skybox_cubemap)
+		renderSkybox(skybox_cubemap);
+
+	renderVolumeFirstPass(light_cam);
+
+	for(auto light : light_list)
+		renderVolume(light_cam, light);
 
 
 	light_fbo->unbind();
-
 
 	
 	if(ssao || ssao_plus){
@@ -269,15 +272,18 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	GFX::checkGLErrors();
 
+
+
 	//render skybox
 	if(skybox_cubemap)
 		renderSkybox(skybox_cubemap);
+
 
 	// HERE =====================
 	// TODO: RENDER RENDERABLES
 	// ==========================
 
-	//
+	
 	for (sDrawCommand draw : entities_to_render) {
 		if (forward) {
 			renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false, light_cam);
@@ -287,7 +293,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		}
 		else {
 			if (volume_light) {
-				renderVolumeFirstPass(draw.material, light_cam);
+				light_fbo->color_textures[0]->toViewport();
 				forward = false;
 				pbr = false;
 			}
@@ -300,8 +306,6 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 		renderMeshWithMaterial(draw.model, draw.mesh, draw.material, true,light_cam);
 
 	}
-
-	//ssao_FBO->color_textures[0]->toViewport();
 
 }
 

@@ -325,6 +325,7 @@ void Renderer::renderDeferred(SCN::Material* material, Camera* cam) {
 		i++;
 	}
 
+	shader->setUniform("u_shine", shine);
 
 	// Upload camera uniforms
 	shader->setUniform3Array("u_light_pos", (float*)light_pos, min(light_list.size(), 10));
@@ -405,8 +406,7 @@ void Renderer::renderDeferred(SCN::Material* material, Camera* cam) {
 }
 
 
-void Renderer::renderVolumeFirstPass(SCN::Material* material, Camera cam) {
-
+void Renderer::renderVolumeFirstPass(Camera cam) {
 
 	GFX::Shader* shader = NULL;
 	shader = GFX::Shader::Get("light_first_pass");
@@ -423,11 +423,13 @@ void Renderer::renderVolumeFirstPass(SCN::Material* material, Camera cam) {
 
 	shader->enable();
 
+
 	LightEntity* light = light_list[3];
 
 	texture_slots = 0;
 
-	material->bind(shader);
+
+	shader->setUniform("u_shine", shine);
 
 	shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
 	shader->setUniform("u_light_color", light->color);
@@ -476,7 +478,7 @@ void Renderer::renderVolumeFirstPass(SCN::Material* material, Camera cam) {
 
 }
 
-void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material, Camera cam) {
+void Renderer::renderVolume(Camera cam, LightEntity* light) {
 
 
 	GFX::Shader* shader = NULL;
@@ -492,7 +494,7 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 
 	shader->enable();
 
-	LightEntity* light = light_list[3];
+
 
 	glDepthFunc(GL_GREATER);
 	glDepthMask(GL_FALSE);
@@ -500,52 +502,78 @@ void Renderer::renderVolume(const Matrix44 model, GFX::Mesh* mesh, SCN::Material
 	glEnable(GL_BLEND);
 	glFrontFace(GL_CW);
 
-	for (int i = 0; i < light_list.size(); i++) {
-		light = light_list[i];
 
-		texture_slots = 0;
+	texture_slots = 0;
 
-		int type = light->light_type;
-		if (type != 3) {
-			// Upload the necessary uniforms.
-			
-			sphere.radius = light->max_distance;
+	int type = light->light_type;
+	if (type != 3) {
 
-			shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
-			shader->setUniform("u_light_color", light->color);
-			shader->setUniform("u_light_intensity", light->intensity);
-			shader->setUniform("u_light_dir", light->root.model.frontVector());
-			shader->setUniform("u_type", type);
-			if (type == 2) {
-				shader->setUniform("u_alpha_min", light->cone_info.x);
-				shader->setUniform("u_alpha_max", light->cone_info.y);
-			}
-			
-			shader->setUniform("u_ambient_light", vec3(0.f, 0.f, 0.f));
+		// Upload the necessary uniforms.
+		sphere.radius = light->max_distance;
 
+		shader->setUniform("u_shine", shine);
 
-			shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
-			shader->setUniform("u_camera_position", camera->eye);
-
-
-			// Upload time, for cool shader effects
-			float t = getTime();
-			shader->setUniform("u_time", t);
-
-			// Create the model from the light data.
-			mat4 sphere_model;
-
-			vec3 position = light->root.getGlobalMatrix().getTranslation();
-			sphere_model.setTranslation(position.x, position.y, position.z);
-			sphere_model.scale(sphere.radius, sphere.radius, sphere.radius);
-
-			shader->setUniform("u_model", sphere_model);
-
-			sphere.render(GL_TRIANGLES);
-
+		shader->setUniform("u_light_pos", light->root.getGlobalMatrix().getTranslation());
+		shader->setUniform("u_light_color", light->color);
+		shader->setUniform("u_light_intensity", light->intensity);
+		shader->setUniform("u_light_dir", light->root.model.frontVector());
+		shader->setUniform("u_type", type);
+		if (type == 2) {
+			shader->setUniform("u_alpha_min", light->cone_info.x);
+			shader->setUniform("u_alpha_max", light->cone_info.y);
 		}
+			
+
+
+		shader->setUniform("u_ambient_light", vec3(0.f, 0.f, 0.f));
+
+
+		shader->setTexture("u_gbuffer_color", gbuffer_fbo->color_textures[0], texture_slots++);
+		shader->setTexture("u_gbuffer_normal", gbuffer_fbo->color_textures[1], texture_slots++);
+		shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
+
+		if (gamma)
+			shader->setUniform("u_gamma", 1);
+		else
+			shader->setUniform("u_gamma", 0);
+
+
+		if (ssao || ssao_plus) {
+			shader->setTexture("u_ssao", ssao_FBO->color_textures[0], texture_slots++);
+			shader->setUniform("u_use_ssao", 1);
+		}
+		else
+			shader->setUniform("u_use_ssao", 0);
+
+		shader->setUniform("u_use_pulse", 0);
+
+
+		shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
+		shader->setUniform("u_inv_vp_mat", camera->inverse_viewprojection_matrix);
+
+
+		shader->setUniform("u_viewprojection", camera->viewprojection_matrix);
+		shader->setUniform("u_camera_position", camera->eye);
+
+
+		// Upload time, for cool shader effects
+		float t = getTime();
+		shader->setUniform("u_time", t);
+
+		// Create the model from the light data.
+		mat4 sphere_model;
+
+		vec3 position = light->root.getGlobalMatrix().getTranslation();
+		sphere_model.setTranslation(position.x, position.y, position.z);
+		sphere_model.scale(sphere.radius, sphere.radius, sphere.radius);
+
+		shader->setUniform("u_model", sphere_model);
+
+		sphere.render(GL_TRIANGLES);
 
 	}
+
+
 
 	//// Return the OpenGL config to what it was
 	glDepthFunc(GL_LESS);

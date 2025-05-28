@@ -711,7 +711,9 @@ void main()
 	}
 
 
-	if(color.a < u_alpha_cutoff)
+	if(	color.a < 0.9 && 
+	floor(mod(gl_FragCoord.x,2.0)) !=
+	floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
 
 
@@ -901,9 +903,11 @@ void main()
 
 	}
 
-
-	if(color.a < u_alpha_cutoff)
+	if(	color.a < 0.9 && 
+	floor(mod(gl_FragCoord.x,2.0)) !=
+	floor(mod(gl_FragCoord.y,2.0)) )
 		discard;
+
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
 		FragColor = vec4(final_color, 1.0);
@@ -935,10 +939,8 @@ in vec3 v_normal;
 in vec2 v_uv;
 in vec4 v_color;
 
-uniform vec4 u_color;
-uniform sampler2D u_texture;
+
 uniform float u_time;
-uniform float u_alpha_cutoff;
 
 uniform vec3 u_light_pos;
 uniform vec3 u_light_color;
