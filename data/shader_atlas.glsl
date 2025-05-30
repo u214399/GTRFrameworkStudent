@@ -579,12 +579,14 @@ vec3 gamma(vec3 c)
 in vec2 v_uv;
 
 //Pulse uniforms
-uniform vec3 u_pulse_color;
-uniform float u_pulse_width;
-uniform vec3 u_pulse_center;
-uniform float u_pulse_radius;
-uniform int u_pulse_active;
-uniform float u_pulse_mixture;
+uniform vec3 u_pulse_color[5];
+uniform float u_pulse_width[5];
+uniform vec3 u_pulse_center[5];
+uniform float u_pulse_radius[5];
+uniform int u_pulse_active[5];
+uniform float u_pulse_mixture[5];
+uniform int u_pulse_border_width[5];
+
 
 
 uniform vec4 u_color;
