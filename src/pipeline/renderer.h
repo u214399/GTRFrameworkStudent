@@ -62,14 +62,22 @@ namespace SCN {
 		int texture_slots;
 		GFX::Texture* skybox_cubemap;
 
-		bool pulse_active = true;
-		float pulse_width =0.3f;
-		Vector3f pulse_color = Vector3(0.0f, 0.0f, 1.0f);
-		float pulse_speed = 0.005f;
-		float pulse_bspeed = 0.0005f;
-		float pulse_start_time = 0.0f;
+		float actualwidth = 1.0f;
+		Vector3f actualcolor = Vector3f(0.0f, 0.0f, 1.0f);
+		float actualspeed = 0.001f;
+		float actualbspeed = 0.001f;
+		float actualstart_time = 0.0f;
+		int actual_borderwidth = 1;
+		//pulse effect
+		bool pulse_active[5];
 
-		GFX::Mesh sphere;
+		float pulse_width[5];
+		Vector3f pulse_color[5];
+		float pulse_speed[5];
+		float pulse_bspeed[5];
+		float pulse_start_time[5];
+		Vector3f pulse_center[5];
+		int pulse_border_width[5];		GFX::Mesh sphere;
 
 		GFX::Texture* texture;
 		GFX::Texture* depth_texture;
