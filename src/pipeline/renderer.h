@@ -85,7 +85,7 @@ namespace SCN {
 		GFX::FBO* gbuffer_fbo;
 		GFX::FBO* light_fbo;
 		GFX::FBO* ssao_FBO;
-
+		bool max_pulse = false;
 		std::vector<Vector3f> ao_sample_points;
 
 		std::vector<Camera> volume_camera;
