@@ -77,7 +77,8 @@ namespace SCN {
 		float pulse_bspeed[5];
 		float pulse_start_time[5];
 		Vector3f pulse_center[5];
-		int pulse_border_width[5];		GFX::Mesh sphere;
+		int pulse_border_width[5];		
+		GFX::Mesh sphere;
 
 		GFX::Texture* texture;
 		GFX::Texture* depth_texture;

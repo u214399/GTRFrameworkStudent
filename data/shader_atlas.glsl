@@ -588,7 +588,6 @@ uniform float u_pulse_mixture[5];
 uniform int u_pulse_border_width[5];
 
 
-
 uniform vec4 u_color;
 uniform sampler2D u_texture;
 uniform float u_time;
@@ -719,30 +718,90 @@ void main()
 		discard;
 
 
-	float mix_ratio = 0.0;
 	
-	if(u_pulse_active==1){
-		vec3 adjusted_position = world_position-u_pulse_center;
-		float dist = sdSphere(adjusted_position, u_pulse_radius);
+	float max_mix=0.0;
+	float mix_ratio = 0.0;
+	vec3 pulse_color=vec3(0.0);
+	float min_radius=100.0;
+	vec3 bordercol=vec3(0.0);
+	int borderwidth=0;
+
+	for(int i=0;i<5;i++){
+		if(u_pulse_active[i]==1){
+			vec3 adjusted_position = world_position-u_pulse_center[i];
+			float dist = sdSphere(adjusted_position, u_pulse_radius[i]);
+			
+			float check = when_lt(dist, 0.0) * when_gt(dist, -u_pulse_width[i]);
+			float percentage = abs(dist) / abs(u_pulse_width[i]);
+			mix_ratio = u_pulse_mixture[i] * check - percentage;
+			mix_ratio = clamp(mix_ratio, 0.0, 1.0);
+			if(mix_ratio>max_mix){
+				pulse_color=u_pulse_color[i];
+				max_mix=mix_ratio;
+				
+			}
+			if(dist<0){
+				if(u_pulse_radius[i]<min_radius){
+					min_radius=u_pulse_radius[i];
+					bordercol=u_pulse_color[i];
+					borderwidth=u_pulse_border_width[i];
+				}
+			}
+		}
 		
-		float check = when_lt(dist, 0.0) * when_gt(dist, -u_pulse_width);
-		float percentage = abs(dist) / abs(u_pulse_width);
-		mix_ratio = u_pulse_mixture * check - percentage;
-		mix_ratio = clamp(mix_ratio, 0.0, 1.0);
+	}
+
+	float neigh_depth[8];
+	vec2 new_coords;
+	vec2 uv_1;
+
+	vec2 offsets[8] = vec2[](
+    vec2(-borderwidth, -borderwidth),
+    vec2( 0.0, -borderwidth),
+    vec2( borderwidth, -borderwidth),
+    vec2(-borderwidth,  0.0),
+    vec2( borderwidth,  0.0),
+    vec2(-borderwidth,  borderwidth),
+    vec2( 0.0,  borderwidth),
+    vec2( borderwidth,  borderwidth)
+);
+	
+	for(int i=0;i<8;i++){
+		new_coords=gl_FragCoord.xy+offsets[i];
+		uv_1 = new_coords * u_res_inv;
+    	neigh_depth[i] = texture(u_gbuffer_depth, uv_1).r;
+	}
+	float depth_dif=0.0;
+	for(int i=0;i<8;i++){
+		depth_dif+=neigh_depth[i];
 	}
 	
+	if(depth_dif/8.0>depth+0.0001){
+		depth_dif=1;
+	}
+	else depth_dif=0;
+
+	if(bordercol==vec3(0.0)) depth_dif=0;
+	
+
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
+
 		
-		if(u_pulse_active==1)
-			FragColor=vec4(mix(final_color,u_pulse_color,mix_ratio),1.0);
-		
-		else FragColor=vec4(final_color,1.0);
+		FragColor=vec4(mix(mix(final_color,bordercol,depth_dif),pulse_color,max_mix),1.0);
+
+
+			
+	}
+	if(u_gamma == 1){
+		vec3 final_color = gamma(color.rgb * light_component);
+			
+		FragColor=vec4(mix(mix(final_color,bordercol,depth_dif),pulse_color,max_mix),1.0);
+	
 	}
 	else{
 		vec4 final_color=color * vec4(light_component, 1.0);
-		if(u_pulse_active==1) FragColor=vec4(mix(final_color.rgb,u_pulse_color,mix_ratio),1.0);
-		else FragColor=final_color;
+		FragColor=mix(mix(final_color,vec4(bordercol,1.0),depth_dif),vec4(pulse_color,1.0),max_mix);
 	}
 }
 
