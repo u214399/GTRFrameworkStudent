@@ -531,14 +531,33 @@ void Renderer::showUI()
 	ImGui::Checkbox("PBR", &pbr);
 	ImGui::Checkbox("SSAO", &ssao);
 	ImGui::Checkbox("SSAO+", &ssao_plus);
-	if (ImGui::Checkbox("Pulse", &pulse_active)) {
-		pulse_start_time = CORE::getTime();
+	if (ImGui::Checkbox("Active Pulse", &max_pulse)) {
+		int i = 0;
+
+		while (i < 5 && pulse_active[i])
+		{
+			i++;
+		}
+		if (i < 5) {
+			pulse_active[i] = true;
+			pulse_start_time[i] = CORE::getTime();
+			pulse_center[i] = Camera::current->eye;
+			pulse_color[i] = actualcolor;
+			pulse_width[i] = actualwidth;
+			pulse_speed[i] = actualspeed;
+			pulse_bspeed[i] = actualbspeed;
+			max_pulse = false;
+			pulse_border_width[i] = actual_borderwidth;
+		}
+		else max_pulse = true;
+
 	}
 
-	ImGui::ColorEdit3("Pulse color", pulse_color.v);
-	ImGui::SliderFloat("Pulse width", &pulse_width, 0.0f, 1.0f);
-	ImGui::SliderFloat("Pulse diffusion Speed", &pulse_bspeed, 0.0f, 0.01f);
-	ImGui::SliderFloat("Pulse Speed", &pulse_speed, 0.0f, 0.01f);
+	ImGui::ColorEdit3("Pulse color", actualcolor.v);
+	ImGui::SliderInt("Pulse border width", &actual_borderwidth, 0, 10);
+	ImGui::SliderFloat("Pulse width", &actualwidth, 0.0f, 4.0f);
+	ImGui::SliderFloat("Pulse diffusion Speed", &actualbspeed, 0.0f, 0.01f);
+	ImGui::SliderFloat("Pulse Speed", &actualspeed, 0.0f, 0.01f);
 	ImGui::Checkbox("Apply Gamma correction", &gamma);
 	ImGui::Checkbox("Regenerate Points", &generate_points);
 	ImGui::SliderInt("Samples", &samples, 15, 30);
