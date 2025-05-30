@@ -39,6 +39,16 @@ Renderer::Renderer(const char* shader_atlas_filename)
 	sphere.createSphere(1.0f);
 	sphere.uploadToVRAM();
 
+
+	for (int i = 0; i < 5; i++) {
+		pulse_active[i] = false;
+		pulse_bspeed[i] = 0.0f;
+		pulse_center[i] = Vector3f(0.0f, 0.0f, 0.0f);
+		pulse_color[i] = Vector3f(1.0f, 1.0f, 1.0f);
+		pulse_speed[i] = 0.0f;
+		pulse_width[i] = 0.0f;
+	}
+
 	texture = new GFX::Texture(1024,1024);
 	fbo = new GFX::FBO();
 	fbo->setTexture(texture);
