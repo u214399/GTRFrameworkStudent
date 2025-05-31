@@ -541,6 +541,17 @@ void Renderer::showUI()
 	ImGui::Checkbox("PBR", &pbr);
 	ImGui::Checkbox("SSAO", &ssao);
 	ImGui::Checkbox("SSAO+", &ssao_plus);
+	ImGui::Checkbox("Apply Gamma correction", &gamma);
+	ImGui::Checkbox("Regenerate Points", &generate_points);
+	ImGui::SliderInt("Samples", &samples, 15, 30);
+	ImGui::SliderFloat("Radius", &radius, 0.01, 0.09);
+	
+}
+
+
+void Renderer::scannerUI()
+{
+
 	if (ImGui::Checkbox("Active Pulse", &max_pulse)) {
 		int i = 0;
 
@@ -568,11 +579,7 @@ void Renderer::showUI()
 	ImGui::SliderFloat("Pulse width", &actualwidth, 0.0f, 4.0f);
 	ImGui::SliderFloat("Pulse diffusion Speed", &actualbspeed, 0.0f, 0.01f);
 	ImGui::SliderFloat("Pulse Speed", &actualspeed, 0.0f, 0.01f);
-	ImGui::Checkbox("Apply Gamma correction", &gamma);
-	ImGui::Checkbox("Regenerate Points", &generate_points);
-	ImGui::SliderInt("Samples", &samples, 15, 30);
-	ImGui::SliderFloat("Radius", &radius, 0.01, 0.09);
-	
+
 }
 #else
 void Renderer::showUI() {}

@@ -131,6 +131,8 @@ namespace SCN {
 		std::vector<Vector3f> generateSpherePoints(int num, float radius, bool hemi);
 
 		void showUI();
+		void scannerUI();
+
 	};
 
 };

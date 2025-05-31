@@ -195,6 +195,12 @@ void SceneEditor::render(Camera* camera)
 		ImGui::EndTabItem();
 	}
 
+	if (ImGui::BeginTabItem("Scanner"))
+	{
+		renderer->scannerUI();
+		ImGui::EndTabItem();
+	}
+
 	if (ImGui::BeginTabItem("Project"))
 	{
 		char filename_buff[255];
