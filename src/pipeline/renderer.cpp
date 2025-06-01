@@ -569,6 +569,7 @@ void Renderer::scannerUI()
 			pulse_bspeed[i] = actualbspeed;
 			max_pulse = false;
 			pulse_border_width[i] = actual_borderwidth;
+			pulse_grid_width[i] = actual_gridwidth;
 		}
 		else max_pulse = true;
 
@@ -576,6 +577,7 @@ void Renderer::scannerUI()
 
 	ImGui::ColorEdit3("Pulse color", actualcolor.v);
 	ImGui::SliderInt("Pulse border width", &actual_borderwidth, 0, 10);
+	ImGui::SliderFloat("Pulse Grid Width", &actual_gridwidth, 0.0f, 2.0f);
 	ImGui::SliderFloat("Pulse width", &actualwidth, 0.0f, 4.0f);
 	ImGui::SliderFloat("Pulse diffusion Speed", &actualbspeed, 0.0f, 0.01f);
 	ImGui::SliderFloat("Pulse Speed", &actualspeed, 0.0f, 0.01f);

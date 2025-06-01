@@ -395,6 +395,7 @@ void Renderer::renderDeferred(SCN::Material* material, Camera* cam) {
 	shader->setUniform1Array("u_pulse_radius", pulse_radius, 5);
 	shader->setUniform1Array("u_pulse_mixture", mixture, 5);
 	shader->setUniform1Array("u_pulse_border_width", pulse_border_width, 5);
+	shader->setUniform1Array("u_pulse_grid_width", pulse_grid_width, 5);
 	for (int i = 0; i < 5; i++) {
 		if (mixture[i] < 0 || pulse_radius[i]>10) {
 			pulse_active[i] = false;
