@@ -126,6 +126,8 @@ namespace SCN {
 
 		void renderVolumeFirstPass(Camera cam);
 		void renderVolume(Camera cam, LightEntity* light);
+		void renderGamma();
+
 		void renderSSAO(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material);
 
 

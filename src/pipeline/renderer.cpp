@@ -259,7 +259,8 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	for(auto light : light_list)
 		renderVolume(light_cam, light);
-
+	if(gamma)
+		renderGamma();
 
 	light_fbo->unbind();
 

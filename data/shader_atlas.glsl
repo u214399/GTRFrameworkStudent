@@ -10,6 +10,8 @@ fill basic.vs gbuffer_fill_fs
 quad quad.vs quad.fs
 light_first_pass quad.vs light.fs
 light basic.vs light.fs
+gamma quad.vs gamma.fs
+
 pbr basic.vs pbr.fs
 quad_pbr quad.vs quad_pbr.fs
 
@@ -814,12 +816,7 @@ void main()
 
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
-
-		
 		FragColor=vec4(mix(mix(mix(final_color,bordercol,depth_gdif),bordercol,depth_bdif),pulse_color,max_mix),1.0);
-
-
-			
 	}
 
 	else{
@@ -1011,11 +1008,6 @@ vec3 degamma(vec3 c)
 	return pow(c,vec3(2.2));
 }
 
-vec3 gamma(vec3 c)
-{
-	return pow(c,vec3(1.0/2.2));
-}
-
 
 in vec3 v_position;
 in vec3 v_world_position;
@@ -1053,6 +1045,8 @@ uniform float u_shadow_bias;
 uniform sampler2D u_ssao;
 uniform int u_use_ssao;
 
+uniform int u_gamma;
+
 out vec4 FragColor;
 
 void main()
@@ -1076,6 +1070,10 @@ void main()
 	 
 	vec3 v3_color = (texture(u_gbuffer_color, uv).xyz);
 	vec4 color = vec4(v3_color, 1.0);
+	
+	if(u_gamma == 1){
+		color = vec4(degamma(v3_color), 1.0);
+	}
 	
 
 	vec3 normal = texture(u_gbuffer_normal, uv).xyz;
@@ -1145,6 +1143,36 @@ void main()
 	vec3 final_color = (color.rgb * light_component);
 	FragColor = vec4(final_color, 1.0);
 	
+}
+
+\gamma.fs
+
+#version 330 core
+
+
+vec3 gamma(vec3 c)
+{
+	return pow(c,vec3(1.0/2.2));
+}
+
+
+in vec2 v_uv;
+
+uniform sampler2D u_texture;
+uniform vec2 u_res_inv; 
+
+out vec4 FragColor;
+
+void main()
+{
+	vec2 uv = gl_FragCoord.xy * u_res_inv;
+
+	vec3 color = texture(u_texture, uv).rgb;
+	vec3 gamma_color = gamma(color);
+	vec3 a = vec3(1.0,0.0,0.0);
+	FragColor = vec4(gamma_color, 1.0);
+
+
 }
 
 \skybox.fs

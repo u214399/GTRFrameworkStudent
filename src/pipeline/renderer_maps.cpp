@@ -601,6 +601,29 @@ void Renderer::renderVolume(Camera cam, LightEntity* light) {
 	shader->disable();
 }
 
+void Renderer::renderGamma() {
+
+	GFX::Shader* shader = NULL;
+	shader = GFX::Shader::Get("gamma");
+
+	assert(glGetError() == GL_NO_ERROR);
+
+	//no shader? then nothing to render
+	if (!shader)
+		return;
+
+	GFX::Mesh* quad = GFX::Mesh::getQuad();
+
+
+	shader->enable();
+	
+	shader->setTexture("u_texture", light_fbo->color_textures[0], texture_slots++);
+	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
+	
+	quad->render(GL_TRIANGLES);
+
+	shader->disable();
+}
 
 
 void Renderer::renderPlain(Camera cam, const Matrix44 model, GFX::Mesh* mesh, SCN::Material* material)
