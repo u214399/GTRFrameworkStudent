@@ -797,7 +797,7 @@ void main()
 		depth_gdif+=neigh_gdepth[i];
 	}
 	
-	if(depth_bdif/8.0>depth+0.0001){
+	if(depth_bdif/8.0>depth+0.0001||depth_bdif/8.0+0.0001<depth){
 		depth_bdif=border_mix;
 	}
 	else depth_bdif=0;
