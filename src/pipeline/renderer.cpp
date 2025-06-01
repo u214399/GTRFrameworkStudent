@@ -574,6 +574,32 @@ void Renderer::scannerUI()
 		else max_pulse = true;
 
 	}
+	if (ImGui::Checkbox("Multi Pulse", &max_pulse)) {
+		int i = 0;
+
+		while (!pulse_active[i])
+		{
+			i++;
+		}
+		if (i  >=5) {
+			for (i = 0; i < 5; i++) {
+				
+				pulse_active[i] = true;
+				pulse_start_time[i] = CORE::getTime()+(float)i*500;
+				pulse_center[i] = Camera::current->eye;
+				pulse_color[i] = actualcolor;
+				pulse_width[i] = actualwidth;
+				pulse_speed[i] = actualspeed;
+				pulse_bspeed[i] = actualbspeed;
+				pulse_border_width[i] = actual_borderwidth;
+				pulse_grid_width[i] = actual_gridwidth;
+			}
+
+			max_pulse = true;
+			
+		}
+
+	}
 
 	ImGui::ColorEdit3("Pulse color", actualcolor.v);
 	ImGui::SliderInt("Pulse border width", &actual_borderwidth, 0, 10);

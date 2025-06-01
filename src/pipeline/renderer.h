@@ -69,6 +69,7 @@ namespace SCN {
 		float actualstart_time = 0.0f;
 		int actual_borderwidth = 1;
 		float actual_gridwidth = 0.0f;
+
 		//pulse effect
 		bool pulse_active[5];
 
