@@ -1072,9 +1072,10 @@ void main()
 	 
 	vec3 v3_color = (texture(u_gbuffer_color, uv).xyz);
 	vec4 color = vec4(v3_color, 1.0);
-	
+	vec3 light_color = u_light_color;
 	if(u_gamma == 1){
 		color = vec4(degamma(v3_color), 1.0);
+		light_color = degamma(u_light_color);
 	}
 	
 
@@ -1125,7 +1126,7 @@ void main()
 	float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
 	float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
 	
-	light_component += intensity*u_light_color*n_dot_v + u_light_color*pow(r_dot_v, u_shine)*intensity;
+	light_component += intensity*light_color*n_dot_v + light_color*pow(r_dot_v, u_shine)*intensity;
 
 	if(u_use_ssao == 1){
 		float ssao_value = texture(u_ssao, uv).r;
