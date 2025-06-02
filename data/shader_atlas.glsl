@@ -589,6 +589,8 @@ uniform int u_pulse_active[5];
 uniform float u_pulse_mixture[5];
 uniform int u_pulse_border_width[5];
 uniform float u_pulse_grid_width[5];
+uniform float u_pulse_circle_radius[5];
+uniform float u_pulse_circle_distance[5];
 
 
 uniform float u_time;
@@ -731,6 +733,8 @@ void main()
 	int borderwidth=0;
 	float gridwidth=0.0;
 	float border_mix=0.0;
+	vec3 min_center = world_position;
+	vec2 min_circle=vec2(0.0);
 
 	for(int i=0;i<5;i++){
 		if(u_pulse_active[i]==1){
@@ -753,6 +757,9 @@ void main()
 					borderwidth=u_pulse_border_width[i];
 					gridwidth=u_pulse_grid_width[i];
 					border_mix=u_pulse_mixture[i];
+					min_center=u_pulse_center[i];
+					min_circle.x=u_pulse_circle_distance[i];
+					min_circle.y=u_pulse_circle_radius[i];
 				}
 			}
 		}
@@ -804,26 +811,33 @@ void main()
 		depth_bdif=border_mix;
 	}
 	else depth_bdif=0;
-	if(depth_gdif/8.0>depth&&gridwidth!=0){
+	if((depth_gdif/8.0>depth+0.00000001||depth_gdif/8.0+0.00000001<depth)&&gridwidth!=0){
 		depth_gdif=0.5*border_mix;
 	}
 	else depth_gdif=0;
+	vec3 tpos=world_position-min_center;
+	tpos=mod(tpos,min_circle.x);
+	float circle=0.2*border_mix;
+	if(sdSphere(tpos-vec3(min_circle.x/2),min_circle.y)>0){
+		circle=0;
+	}
 
 	if(bordercol==vec3(0.0)) {
 		depth_bdif=0;
 		depth_gdif=0;
+		circle=0;
 	}
 	
 
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
 		//vec3 gamma_color = final_color * light_component;
-		FragColor=vec4(mix(mix(mix(final_color,bordercol,depth_gdif),bordercol,depth_bdif),pulse_color,max_mix),1.0);
+		FragColor=vec4(mix(mix(mix(mix(final_color,bordercol,circle),bordercol,depth_gdif),bordercol,depth_bdif),pulse_color,max_mix),1.0);
 	}
 
 	else{
 		vec4 final_color=color * vec4(light_component, 1.0);
-		FragColor=mix(mix(mix(final_color,vec4(bordercol,1.0),depth_gdif),vec4(bordercol,1.0),depth_bdif),vec4(pulse_color,1.0),max_mix);
+		FragColor=mix(mix(mix(mix(final_color,vec4(bordercol,1.0),circle),vec4(bordercol,1.0),depth_gdif),vec4(bordercol,1.0),depth_bdif),vec4(pulse_color,1.0),max_mix);
 	}
 }
 

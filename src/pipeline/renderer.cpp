@@ -571,11 +571,14 @@ void Renderer::scannerUI()
 			max_pulse = false;
 			pulse_border_width[i] = actual_borderwidth;
 			pulse_grid_width[i] = actual_gridwidth;
+			pulse_circle_distance[i] = actual_circle_distances;
+			pulse_circle_radius[i] = actual_circle_radius;
+			pulse_duration[i] = actual_duration * 1000;
 		}
 		else max_pulse = true;
 
 	}
-	if (ImGui::Checkbox("Multi Pulse", &max_pulse)) {
+	if (ImGui::Button("Multi Pulse")) {
 		int i = 0;
 
 		while (!pulse_active[i])
@@ -594,6 +597,10 @@ void Renderer::scannerUI()
 				pulse_bspeed[i] = actualbspeed;
 				pulse_border_width[i] = actual_borderwidth;
 				pulse_grid_width[i] = actual_gridwidth;
+				pulse_circle_distance[i] = actual_circle_distances;
+				pulse_circle_radius[i] = actual_circle_radius;
+
+				pulse_duration[i] = actual_duration * 1000;
 			}
 
 			max_pulse = true;
@@ -602,12 +609,18 @@ void Renderer::scannerUI()
 
 	}
 
-	ImGui::ColorEdit3("Pulse color", actualcolor.v);
-	ImGui::SliderInt("Pulse border width", &actual_borderwidth, 0, 10);
-	ImGui::SliderFloat("Pulse Grid Width", &actual_gridwidth, 0.0f, 2.0f);
-	ImGui::SliderFloat("Pulse width", &actualwidth, 0.0f, 4.0f);
-	ImGui::SliderFloat("Pulse diffusion Speed", &actualbspeed, 0.0f, 0.01f);
+	ImGui::ColorEdit3("Color", actualcolor.v);
+	ImGui::SliderInt("Border Width", &actual_borderwidth, 0, 10);
+	ImGui::SliderFloat("Grid Width", &actual_gridwidth, 0.0f, 2.0f);
+	ImGui::SliderFloat("Pulse Width", &actualwidth, 0.0f, 4.0f);
+	ImGui::SliderFloat("Diffusion Speed", &actualbspeed, 0.0f, 0.01f);
 	ImGui::SliderFloat("Pulse Speed", &actualspeed, 0.0f, 0.01f);
+	ImGui::SliderFloat("Duration (secons)", &actual_duration, 0.0f, 30.0f);
+	ImGui::SliderFloat("Circle Distance", &actual_circle_distances, 0.1f, 2.0f);
+	ImGui::SliderFloat("Circle Radius", &actual_circle_radius, 0.0f, 0.1f);
+	if (ImGui::Button("Delete Pulse")) {
+		for (int i = 0; i < 5; i++) pulse_active[i] = false;
+	}
 
 }
 #else

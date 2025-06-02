@@ -69,6 +69,10 @@ namespace SCN {
 		float actualstart_time = 0.0f;
 		int actual_borderwidth = 1;
 		float actual_gridwidth = 0.0f;
+		float actual_duration = 0.0f;
+		float actual_circle_distances = 0.2f;
+		float actual_circle_radius = 0.05f;
+
 
 		//pulse effect
 		bool pulse_active[5];
@@ -81,6 +85,9 @@ namespace SCN {
 		Vector3f pulse_center[5];
 		int pulse_border_width[5];	
 		float pulse_grid_width[5];
+		float pulse_duration[5];
+		float pulse_circle_distance[5];
+		float pulse_circle_radius[5];
 		GFX::Mesh sphere;
 
 		GFX::Texture* texture;
