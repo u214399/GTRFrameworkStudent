@@ -245,6 +245,7 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	//	cam.setOrthographic(-half_size, half_size, -half_size, half_size, light_list[i]->near_distance, light_list[i]->max_distance);
 	//	
 	//	volume_camera.push_back(cam);
+	//	volume_camera.push_back(cam);
 	//}
 	//glColorMask(true, true, true, true);
 	//
@@ -259,11 +260,12 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 
 	for(auto light : light_list)
 		renderVolume(light_cam, light);
-	if(gamma)
-		renderGamma();
+
 
 	light_fbo->unbind();
 
+	if (gamma)
+		renderGamma();
 	
 	if(ssao || ssao_plus){
 		ssao_FBO->bind();
@@ -294,22 +296,20 @@ void Renderer::renderScene(SCN::Scene* scene, Camera* camera)
 	// TODO: RENDER RENDERABLES
 	// ==========================
 
-	
-	for (sDrawCommand draw : entities_to_render) {
-		if (forward) {
+	if (!forward) {
+		renderDeferred(&light_cam);
+		if (volume_light) {
+			light_fbo->color_textures[0]->toViewport();
+			forward = false;
+			pbr = false;
+		}
+	}
+	else {
+		for (sDrawCommand draw : entities_to_render) {
 			renderMeshWithMaterial(draw.model, draw.mesh, draw.material, false, light_cam);
 			volume_light = false;
 			ssao = false;
 			ssao_plus = false;
-		}
-		else {
-			if (volume_light) {
-				light_fbo->color_textures[0]->toViewport();
-				forward = false;
-				pbr = false;
-			}
-			else
-				renderDeferred(draw.material, &light_cam);
 		}
 	}
 

@@ -591,10 +591,7 @@ uniform int u_pulse_border_width[5];
 uniform float u_pulse_grid_width[5];
 
 
-uniform vec4 u_color;
-uniform sampler2D u_texture;
 uniform float u_time;
-uniform float u_alpha_cutoff;
 
 uniform vec3 u_light_pos[10];
 uniform vec3 u_light_color[10];
@@ -669,6 +666,10 @@ void main()
 	for(int i = 0; i < 4; i++){
 		vec3 L;
 		float intensity;
+		vec3 light_color = u_light_color[i];
+		if(u_gamma == 1)
+			light_color = degamma(u_light_color[i]);
+
 		vec3 L_unnorm = u_light_pos[i] - world_position;
 		float d = length(L_unnorm);
 
@@ -701,7 +702,7 @@ void main()
 		float r_dot_v = clamp(dot(R, normalize(normal)),0.0,1.0);
 		float n_dot_v = clamp(dot(L, normalize(normal)),0.0,1.0);
 		
-		light_component += intensity*u_light_color[i]*n_dot_v + u_light_color[i]*pow(r_dot_v, u_shine)*intensity;
+		light_component += intensity*light_color*n_dot_v + light_color*pow(r_dot_v, u_shine)*intensity;
 	}
 
 
@@ -816,6 +817,7 @@ void main()
 
 	if(u_gamma == 1){
 		vec3 final_color = gamma(color.rgb * light_component);
+		//vec3 gamma_color = final_color * light_component;
 		FragColor=vec4(mix(mix(mix(final_color,bordercol,depth_gdif),bordercol,depth_bdif),pulse_color,max_mix),1.0);
 	}
 
@@ -1159,6 +1161,7 @@ vec3 gamma(vec3 c)
 in vec2 v_uv;
 
 uniform sampler2D u_texture;
+uniform sampler2D u_gbuffer_depth;
 uniform vec2 u_res_inv; 
 
 out vec4 FragColor;
@@ -1166,6 +1169,13 @@ out vec4 FragColor;
 void main()
 {
 	vec2 uv = gl_FragCoord.xy * u_res_inv;
+
+	float depth = texture(u_gbuffer_depth, uv).r;
+	float depth_clip = depth * 2.0 - 1.0;
+
+	if(depth >= 1)
+		discard;
+
 
 	vec3 color = texture(u_texture, uv).rgb;
 	vec3 gamma_color = gamma(color);

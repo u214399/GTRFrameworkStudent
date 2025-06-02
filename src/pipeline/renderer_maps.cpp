@@ -271,7 +271,7 @@ void Renderer::fillGBuff(const Matrix44 model, GFX::Mesh* mesh, SCN::Material* m
 
 
 
-void Renderer::renderDeferred(SCN::Material* material, Camera* cam) {
+void Renderer::renderDeferred(Camera* cam) {
 
 	assert(glGetError() == GL_NO_ERROR);
 
@@ -288,7 +288,8 @@ void Renderer::renderDeferred(SCN::Material* material, Camera* cam) {
 		shader = GFX::Shader::Get("quad_pbr");
 	else
 		shader = GFX::Shader::Get("quad");
-	glEnable(GL_CULL_FACE);
+
+	glDisable(GL_CULL_FACE);
 	glFrontFace(GL_CW);
 
 	assert(glGetError() == GL_NO_ERROR);
@@ -298,7 +299,7 @@ void Renderer::renderDeferred(SCN::Material* material, Camera* cam) {
 		return;
 	shader->enable();
 
-	material->bind(shader);
+	//material->bind(shader);
 
 	texture_slots = 0;
 
@@ -614,10 +615,13 @@ void Renderer::renderGamma() {
 
 	GFX::Mesh* quad = GFX::Mesh::getQuad();
 
+	texture_slots = 0;
 
 	shader->enable();
 	
 	shader->setTexture("u_texture", light_fbo->color_textures[0], texture_slots++);
+	shader->setTexture("u_gbuffer_depth", gbuffer_fbo->depth_texture, texture_slots++);
+
 	shader->setUniform("u_res_inv", vec2(1.0f / CORE::getWindowSize().x, 1.0f / CORE::getWindowSize().y));
 	
 	quad->render(GL_TRIANGLES);
