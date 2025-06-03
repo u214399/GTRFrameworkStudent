@@ -87,10 +87,24 @@ void main()
 
 #version 330 core
 
+in vec2 v_uv;
+
+
+uniform vec4 u_color;
+uniform sampler2D u_texture;
+uniform float u_alpha_cutoff;
+
+
 out vec4 FragColor;
 
 void main()
 {
+	vec4 color = u_color;
+	color *= texture( u_texture, v_uv );
+
+	if(color.a < u_alpha_cutoff)
+		discard;
+	
 	FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 }
 
