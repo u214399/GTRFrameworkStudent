@@ -811,7 +811,7 @@ void main()
 		depth_bdif=border_mix;
 	}
 	else depth_bdif=0;
-	if((depth_gdif/8.0>depth+0.00000001||depth_gdif/8.0+0.00000001<depth)&&gridwidth!=0){
+	if(depth_gdif/8.0>depth+0.0000001&&gridwidth!=0){
 		depth_gdif=0.5*border_mix;
 	}
 	else depth_gdif=0;
